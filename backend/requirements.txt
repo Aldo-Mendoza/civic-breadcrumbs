@@ -1,0 +1,9 @@
+Django==5.2.3
+djangorestframework==3.16.0
+django-cors-headers==4.6.0
+dj-database-url==2.3.0
+drf-spectacular==0.28.0
+pydantic==2.12.5
+python-dotenv==1.2.2
+psycopg[binary]==3.2.3
+google-genai==1.2.0
