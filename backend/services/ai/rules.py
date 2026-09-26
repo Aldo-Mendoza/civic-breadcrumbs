@@ -26,7 +26,7 @@ from datetime import date, timedelta
 
 from apps.journeys import enums
 
-from .schemas import BreadcrumbDraft, JourneyDraft, ProseSummary
+from .schemas import BreadcrumbDraft, GuideStepDraft, JourneyDraft, ProseSummary
 from .schemas import clarification_for as _clarification_for
 
 # ---------------------------------------------------------------------------
@@ -434,6 +434,53 @@ def _build_paraphrase(organization_stated, organization_display, channel, status
     )
 
 
+def _guide_for(text):
+    """Return safe procedural suggestions without inventing official requirements."""
+    lowered = (text or "").lower()
+    clarification = ""
+
+    if "passport" in lowered:
+        if not any(country in lowered for country in ("canada", "canadian", "united states", "american", "uk", "british")):
+            clarification = "Which country issued the passport you want to renew?"
+        steps = [
+            ("Confirm the issuing country and renewal route", "Use the passport authority for the country that issued your passport and confirm whether your situation follows its renewal process."),
+            ("Check the official renewal guidance", "Review the issuing authority's current eligibility, timing, delivery, and submission guidance before preparing anything."),
+            ("Gather the listed documents", "Make a checklist from the official service. Only collect the documents and photos it currently asks for."),
+            ("Complete and review the application", "Follow the official instructions, check every entry, and avoid recording passport numbers or other identifiers in this app."),
+            ("Submit through an official channel", "Use an official submission option and record the date, channel, and non-sensitive confirmation details in your Journey."),
+            ("Track requests and the result", "Record acknowledgements, requests for more information, and the final outcome as they occur."),
+        ]
+    elif "study permit" in lowered or "work permit" in lowered or "visa" in lowered:
+        steps = [
+            ("Check the current official process", "Open the responsible authority's current guidance and confirm which process applies to your situation."),
+            ("Gather the listed supporting material", "Build a checklist only from the current official instructions and note what you already have."),
+            ("Complete and review the application", "Follow the official process and review the information before submitting it."),
+            ("Submit and save confirmation", "Use the official channel, then record the submission date and non-sensitive confirmation details."),
+            ("Track updates and instructions", "Record each acknowledgement, request, interaction, or instruction so the Journey shows where you left off."),
+        ]
+    elif "health card" in lowered or "ohip" in lowered:
+        steps = [
+            ("Check the official health-card process", "Confirm the current application or renewal route on the responsible provincial service's website."),
+            ("Review eligibility and required documents", "Use only the current official checklist and identify what you still need."),
+            ("Choose the official service channel", "Confirm whether the official process directs you online, by mail, or to a service location."),
+            ("Complete the application", "Follow the official instructions and review the information before submitting it."),
+            ("Record submission and follow-up", "Save non-sensitive confirmation details and record later instructions or outcomes."),
+        ]
+    else:
+        steps = [
+            ("Find the responsible official service", "Confirm which public organization owns this process before relying on forms or instructions."),
+            ("Review the current official process", "Check the official source for eligibility, required material, available channels, and current instructions."),
+            ("Prepare what the official service requests", "Create a checklist from the verified instructions and note what is already complete."),
+            ("Complete the next official action", "Follow the verified process and review the information before submitting or attending."),
+            ("Record confirmation and follow-up", "Add receipts, interactions, instructions, and outcomes to this Journey without sensitive identifiers."),
+        ]
+
+    return (
+        [GuideStepDraft(title=title, description=description) for title, description in steps],
+        clarification,
+    )
+
+
 class RuleBasedAIService:
     """Deterministic implementation of the AI service contract."""
 
@@ -463,6 +510,9 @@ class RuleBasedAIService:
             ("health card", "Health Card"),
             ("ohip", "Health Coverage"),
             ("driver", "Driver Licence"),
+            ("renew my passport", "Passport Renewal"),
+            ("renew a passport", "Passport Renewal"),
+            ("passport renewal", "Passport Renewal"),
             ("passport", "Passport Application"),
             ("employment insurance", "Employment Insurance"),
             ("tax", "Taxes and Benefits"),
@@ -488,12 +538,21 @@ class RuleBasedAIService:
             title = (clause[:60].rsplit(" ", 1)[0] if len(clause) > 60 else clause)
             title = title.capitalize() or "My journey"
 
+        guide_steps, clarification = _guide_for(text)
         return JourneyDraft(
             title=title,
             goal=text or title,
             organization="",
             confidence=0.8 if title != "My journey" else 0.4,
             extractor=self.name,
+            guide_summary=(
+                "Use these suggested steps to organize the process. Verify current "
+                "requirements with the responsible official service, then record "
+                "what you actually do in your Journey."
+            ),
+            guide_steps=guide_steps,
+            needs_clarification=bool(clarification),
+            clarification_question=clarification,
         )
 
     # -- breadcrumbs -------------------------------------------------------

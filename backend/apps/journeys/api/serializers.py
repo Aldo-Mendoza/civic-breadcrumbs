@@ -11,7 +11,7 @@ frontend to work from without reading models.
 from rest_framework import serializers
 
 from apps.journeys import enums
-from apps.journeys.models import Breadcrumb, Journey
+from apps.journeys.models import Breadcrumb, Guide, GuideStep, Journey
 
 
 class OrganizationSummarySerializer(serializers.Serializer):
@@ -20,6 +20,52 @@ class OrganizationSummarySerializer(serializers.Serializer):
     short_name = serializers.CharField(read_only=True)
     jurisdiction = serializers.CharField(read_only=True)
     official_url = serializers.URLField(read_only=True)
+
+
+class GuideOfficialSourceSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    title = serializers.CharField(read_only=True)
+    url = serializers.URLField(read_only=True)
+    description = serializers.CharField(read_only=True)
+    verified_at = serializers.DateTimeField(read_only=True)
+
+
+class GuideStepSerializer(serializers.ModelSerializer):
+    organization = OrganizationSummarySerializer(read_only=True)
+    official_source = GuideOfficialSourceSerializer(read_only=True)
+    completion_breadcrumb_id = serializers.UUIDField(read_only=True, allow_null=True)
+
+    class Meta:
+        model = GuideStep
+        fields = [
+            "id",
+            "position",
+            "title",
+            "description",
+            "status",
+            "organization",
+            "official_source",
+            "completion_breadcrumb_id",
+        ]
+        read_only_fields = fields
+
+
+class GuideSerializer(serializers.ModelSerializer):
+    steps = GuideStepSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Guide
+        fields = [
+            "id",
+            "summary",
+            "generated_by",
+            "needs_clarification",
+            "clarification_question",
+            "steps",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
 
 
 class BreadcrumbDetailSerializer(serializers.ModelSerializer):
@@ -41,6 +87,7 @@ class BreadcrumbDetailSerializer(serializers.ModelSerializer):
         model = Breadcrumb
         fields = [
             "id",
+            "guide_step",
             "kind",
             "channel",
             "title",
@@ -118,6 +165,7 @@ class JourneyListSerializer(serializers.ModelSerializer):
 class JourneyDetailSerializer(serializers.ModelSerializer):
     primary_organization = OrganizationSummarySerializer(read_only=True)
     breadcrumbs = BreadcrumbDetailSerializer(many=True, read_only=True)
+    guide = GuideSerializer(read_only=True)
 
     class Meta:
         model = Journey
@@ -130,6 +178,7 @@ class JourneyDetailSerializer(serializers.ModelSerializer):
             "next_action",
             "next_action_code",
             "primary_organization",
+            "guide",
             "breadcrumbs",
             "created_at",
             "updated_at",
@@ -141,8 +190,9 @@ class JourneyCreateSerializer(serializers.Serializer):
     """
     Create a journey, either from structured fields or from a description.
 
-    Supplying ``description`` alone triggers at most one interpretation call to
-    propose a title and goal; supplying ``title`` skips AI entirely (§17).
+    ``description`` triggers at most one interpretation call that proposes both
+    the Journey and a bounded guide. Structured clients still receive the safe
+    deterministic guide without spending a model call.
     """
 
     title = serializers.CharField(required=False, allow_blank=True, max_length=200)
@@ -245,6 +295,7 @@ class BreadcrumbCreateSerializer(serializers.Serializer):
     request_id = serializers.CharField(required=False, allow_blank=True, max_length=64)
     confidence = serializers.FloatField(required=False, min_value=0.0, max_value=1.0)
     extractor = serializers.CharField(required=False, allow_blank=True, max_length=32)
+    guide_step_id = serializers.UUIDField(required=False, allow_null=True)
 
     def validate_source_type(self, value):
         # AI output can never be submitted as evidence (§14 Rule 2). The choice
@@ -274,3 +325,4 @@ class SaveAsNoteSerializer(serializers.Serializer):
 
     text = serializers.CharField(max_length=4000)
     request_id = serializers.CharField(required=False, allow_blank=True, max_length=64)
+    guide_step_id = serializers.UUIDField(required=False, allow_null=True)

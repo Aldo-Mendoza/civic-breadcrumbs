@@ -77,11 +77,17 @@ class FakeWorkingService:
 
     def extract_journey(self, user_text):
         self.calls += 1
-        from services.ai.schemas import JourneyDraft
+        from services.ai.schemas import GuideStepDraft, JourneyDraft
 
         return JourneyDraft(
             title="Study Permit Extension", goal=user_text, confidence=0.9,
             extractor="gemini",
+            guide_summary="Suggested guide.",
+            guide_steps=[
+                GuideStepDraft(title="Check official guidance", description="Verify the process."),
+                GuideStepDraft(title="Prepare", description="Follow the official checklist."),
+                GuideStepDraft(title="Record the result", description="Save what happened."),
+            ],
         )
 
     def summarize_stuck_state(self, snapshot):
@@ -687,13 +693,11 @@ class GeminiRetryPolicyTests(TestCase):
     A 429 (quota/rate-limited) must never be retried -- this is not
     theoretical: the previous version of this code retried on *any* exception,
     429 included, immediately and with no delay, which is precisely what
-    exhausted a free-tier daily quota in minutes during development. A 503
-    (transient overload) is worth exactly one short, capped-backoff retry --
-    never zero, never unbounded.
+    exhausted a free-tier daily quota in minutes during development. A 503 is
+    also not retried: one explicit action may spend at most one provider call.
     """
 
-    @patch("services.ai.gemini.time.sleep")
-    def test_a_429_is_never_retried(self, mock_sleep):
+    def test_a_429_is_never_retried(self):
         from google.genai import errors as genai_errors
 
         error = genai_errors.ClientError(429, _fake_api_response(429, "quota exceeded"))
@@ -703,41 +707,33 @@ class GeminiRetryPolicyTests(TestCase):
             service._generate("prompt", {"type": "object"}, "extract_breadcrumb")
 
         self.assertEqual(client.calls, 1)
-        mock_sleep.assert_not_called()
 
-    @patch("services.ai.gemini.time.sleep")
-    def test_a_503_gets_exactly_one_capped_backoff_retry_then_succeeds(self, mock_sleep):
+    def test_a_503_is_never_retried(self):
         from google.genai import errors as genai_errors
 
         error = genai_errors.ServerError(503, _fake_api_response(503, "overloaded"))
-        success = SimpleNamespace(text=json.dumps({"kind": "NOTE"}))
-        service, client = _service_with_scripted_client([error, success])
-
-        result = service._generate("prompt", {"type": "object"}, "extract_breadcrumb")
-
-        self.assertEqual(result, {"kind": "NOTE"})
-        self.assertEqual(client.calls, 2)
-        mock_sleep.assert_called_once()
-        waited = mock_sleep.call_args[0][0]
-        self.assertGreater(waited, 0)
-        self.assertLessEqual(waited, 2.0)  # capped, never unbounded
-
-    @patch("services.ai.gemini.time.sleep")
-    def test_two_consecutive_503s_degrade_after_exactly_one_retry(self, mock_sleep):
-        from google.genai import errors as genai_errors
-
-        first = genai_errors.ServerError(503, _fake_api_response(503))
-        second = genai_errors.ServerError(503, _fake_api_response(503))
-        service, client = _service_with_scripted_client([first, second])
+        service, client = _service_with_scripted_client([error])
 
         with self.assertRaises(AIUnavailable):
             service._generate("prompt", {"type": "object"}, "extract_breadcrumb")
 
-        self.assertEqual(client.calls, 2)
-        mock_sleep.assert_called_once()
+        self.assertEqual(client.calls, 1)
 
-    @patch("services.ai.gemini.time.sleep")
-    def test_a_429_still_leaves_the_gateway_falling_back_to_rules(self, mock_sleep):
+    def test_a_503_leaves_the_gateway_falling_back_to_rules(self):
+        from google.genai import errors as genai_errors
+
+        first = genai_errors.ServerError(503, _fake_api_response(503))
+        service, client = _service_with_scripted_client([first])
+        gateway = AIGateway(primary=service, fallback=RuleBasedAIService())
+        draft, degraded = gateway.extract_breadcrumb(
+            "I called IRCC today, still processing.", {}
+        )
+
+        self.assertTrue(degraded)
+        self.assertEqual(draft.extractor, "rules")
+        self.assertEqual(client.calls, 1)
+
+    def test_a_429_still_leaves_the_gateway_falling_back_to_rules(self):
         """The end-to-end guarantee: a quota error must still land the citizen
         on a usable rule-based draft, never an error page (§28)."""
         from google.genai import errors as genai_errors
@@ -751,4 +747,3 @@ class GeminiRetryPolicyTests(TestCase):
         )
         self.assertTrue(degraded)
         self.assertEqual(draft.extractor, "rules")
-        mock_sleep.assert_not_called()

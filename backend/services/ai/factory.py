@@ -18,8 +18,11 @@ carries ``degraded: true`` so the interface can tell the citizen their draft was
 organized without AI.
 """
 import logging
+import hashlib
+import json
 
 from django.conf import settings
+from django.core.cache import cache
 
 from common.exceptions import AIUnavailable
 
@@ -58,12 +61,13 @@ class AIGateway:
     citizen still gets their draft, and the interface can say so plainly.
     """
 
-    def __init__(self, primary=None, fallback=None, max_calls=1):
+    def __init__(self, primary=None, fallback=None, max_calls=1, cache_namespace="shared"):
         self._fallback = fallback or RuleBasedAIService()
         self._primary = primary if primary is not None else build_primary_service()
         self._max_calls = max_calls
         self.calls = 0
         self.provider = getattr(self._primary, "name", "rules")
+        self._cache_namespace = cache_namespace
 
     @property
     def uses_live_model(self):
@@ -82,10 +86,20 @@ class AIGateway:
 
     def _run(self, operation, *args):
         """Attempt the primary implementation, degrade to deterministic."""
-        if not self._spend(operation):
+        cache_key = self._cache_key(operation, args)
+        live_action = self._spend(operation)
+        cache_enabled = ai_configured()
+        if live_action and cache_enabled:
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return cached, False
+        if not live_action:
             return getattr(self._fallback, operation)(*args), False
         try:
-            return getattr(self._primary, operation)(*args), False
+            result = getattr(self._primary, operation)(*args)
+            if cache_enabled:
+                cache.set(cache_key, result, settings.AI_RESULT_CACHE_SECONDS)
+            return result, False
         except AIUnavailable as exc:
             logger.warning(
                 "ai_operation=%s status=degraded reason=%s", operation, exc.code
@@ -95,6 +109,16 @@ class AIGateway:
             # An unexpected SDK error must not cost the citizen their input.
             logger.exception("ai_operation=%s status=degraded reason=unexpected", operation)
             return getattr(self._fallback, operation)(*args), True
+
+    def _cache_key(self, operation, args):
+        """Cache exact action inputs within one server-resolved identity."""
+        encoded = json.dumps(
+            {"identity": self._cache_namespace, "operation": operation, "args": args},
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        ).encode()
+        return "ai-result:" + hashlib.sha256(encoded).hexdigest()
 
     # -- contract ----------------------------------------------------------
 
@@ -111,6 +135,6 @@ class AIGateway:
         return self._run("generate_handoff", journey_snapshot)
 
 
-def get_gateway():
+def get_gateway(cache_namespace="shared"):
     """Build the gateway for one user action."""
-    return AIGateway()
+    return AIGateway(cache_namespace=cache_namespace)

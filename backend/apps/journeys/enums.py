@@ -56,6 +56,14 @@ class SourceType(models.TextChoices):
     AI_INTERPRETATION = "AI_INTERPRETATION", "AI interpretation"
 
 
+class GuideStepStatus(models.TextChoices):
+    """Progress through suggested guidance, kept separate from case status."""
+
+    NOT_STARTED = "NOT_STARTED", "Not started"
+    IN_PROGRESS = "IN_PROGRESS", "In progress"
+    COMPLETED = "COMPLETED", "Completed"
+
+
 class ReportedStatus(models.TextChoices):
     """A status the citizen was *told*, not a status we independently verified."""
 

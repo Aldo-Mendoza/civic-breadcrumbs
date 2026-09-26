@@ -1,0 +1,435 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Civic Breadcrumbs</title>
+<!--
+  Fallback demo interface.
+
+  Deliberately dependency-free: no build step, no CDN, no framework. It exists so
+  the complete flow is demonstrable from a clean checkout, and so a broken asset
+  pipeline can never be the reason a judge does not see the product.
+
+  Accessibility is treated as a requirement, not a polish pass (README §26):
+  provenance is conveyed by text as well as colour, the state panel is an
+  aria-live region so screen-reader users hear it change, every control is a real
+  button reachable by keyboard, focus is always visible, and the type scale
+  starts at 17px.
+-->
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --ink: #14181f;
+    --ink-soft: #4a5260;
+    --line: #d6dae1;
+    --accent: #0b4f7a;
+    --accent-ink: #ffffff;
+    --waiting: #7a4a05;
+    --waiting-bg: #fdf1dc;
+    --action: #8a2016;
+    --action-bg: #fdeceb;
+    --done: #14532d;
+    --done-bg: #e6f4ea;
+    --focus: #b45309;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14181f;
+      --surface: #1c222b;
+      --ink: #f2f4f7;
+      --ink-soft: #b3bcc9;
+      --line: #333c49;
+      --accent: #7cc0ec;
+      --accent-ink: #0b1a24;
+      --waiting: #fcd9a0;
+      --waiting-bg: #3a2c11;
+      --action: #f7b3ab;
+      --action-bg: #3d1a16;
+      --done: #a7e0bb;
+      --done-bg: #12321f;
+      --focus: #fbbf24;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 17px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  :focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+  .skip {
+    position: absolute; left: -9999px;
+    background: var(--surface); color: var(--ink);
+    padding: 12px 16px; z-index: 10; border-radius: 6px;
+  }
+  .skip:focus { left: 16px; top: 16px; }
+  header.top {
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 18px 20px;
+  }
+  .top-inner { max-width: 1040px; margin: 0 auto; }
+  h1 { font-size: 1.4rem; margin: 0; letter-spacing: -0.01em; }
+  .tagline { color: var(--ink-soft); margin: 4px 0 0; font-size: 0.95rem; }
+  main {
+    max-width: 1040px; margin: 0 auto; padding: 20px;
+    display: grid; grid-template-columns: 260px 1fr; gap: 20px;
+  }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 18px;
+  }
+  h2 { font-size: 1.05rem; margin: 0 0 12px; text-transform: uppercase;
+       letter-spacing: 0.05em; color: var(--ink-soft); }
+  h3 { font-size: 1.25rem; margin: 0 0 6px; }
+  .goal { color: var(--ink-soft); margin: 0 0 14px; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  .journey-btn {
+    display: block; width: 100%; text-align: left; cursor: pointer;
+    background: transparent; border: 1px solid transparent; border-radius: 8px;
+    padding: 10px 12px; margin-bottom: 4px; color: var(--ink);
+    font: inherit;
+  }
+  .journey-btn:hover { border-color: var(--line); }
+  .journey-btn[aria-current="true"] { background: var(--accent); color: var(--accent-ink); }
+  .journey-btn small { display: block; opacity: 0.85; font-size: 0.85rem; }
+  .pill {
+    display: inline-block; font-size: 0.8rem; font-weight: 700;
+    padding: 3px 10px; border-radius: 999px; border: 1px solid currentColor;
+  }
+  .pill.WAITING { color: var(--waiting); background: var(--waiting-bg); }
+  .pill.ACTION_REQUIRED { color: var(--action); background: var(--action-bg); }
+  .pill.COMPLETED { color: var(--done); background: var(--done-bg); }
+  .pill.ACTIVE { color: var(--ink-soft); background: var(--bg); }
+  .here {
+    border-left: 5px solid var(--accent);
+    background: var(--surface);
+  }
+  .here .label { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.1em;
+                 color: var(--accent); text-transform: uppercase; }
+  .here p.state { font-size: 1.15rem; margin: 6px 0 14px; }
+  .next { border-top: 1px solid var(--line); padding-top: 12px; }
+  .next .label { color: var(--ink-soft); }
+  .provenance {
+    font-size: 0.82rem; color: var(--ink-soft); margin-top: 10px;
+  }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+  button.act {
+    font: inherit; font-weight: 600; cursor: pointer;
+    padding: 12px 16px; border-radius: 8px;
+    border: 1px solid var(--accent); background: var(--surface); color: var(--accent);
+    min-height: 44px;
+  }
+  button.act.primary { background: var(--accent); color: var(--accent-ink); }
+  button.act:hover { filter: brightness(0.96); }
+  button.act:disabled { opacity: 0.5; cursor: not-allowed; }
+  ol.timeline { list-style: none; margin: 0; padding: 0; }
+  ol.timeline li {
+    border-left: 2px solid var(--line); padding: 0 0 18px 18px;
+    position: relative; margin-left: 6px;
+  }
+  ol.timeline li::before {
+    content: ""; position: absolute; left: -7px; top: 4px;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--accent); border: 2px solid var(--surface);
+  }
+  ol.timeline li:last-child { border-left-color: transparent; padding-bottom: 0; }
+  .when { font-size: 0.85rem; color: var(--ink-soft); }
+  .what { font-weight: 600; }
+  .tag {
+    display: inline-block; font-size: 0.72rem; font-weight: 700;
+    letter-spacing: 0.04em; padding: 2px 7px; border-radius: 4px;
+    border: 1px solid var(--line); color: var(--ink-soft);
+    margin: 4px 6px 0 0; text-transform: uppercase;
+  }
+  .said { font-style: italic; color: var(--ink-soft); margin: 6px 0 0; }
+  textarea {
+    width: 100%; font: inherit; padding: 12px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+    min-height: 110px; resize: vertical;
+  }
+  label { display: block; font-weight: 600; margin: 12px 0 4px; }
+  select, input[type=text], input[type=date] {
+    font: inherit; padding: 10px; border-radius: 8px; width: 100%;
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 600px) { .grid2 { grid-template-columns: 1fr; } }
+  pre.summary {
+    white-space: pre-wrap; font: inherit; background: var(--bg);
+    border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin: 0;
+  }
+  .notice {
+    border: 1px solid var(--line); border-left: 4px solid var(--focus);
+    background: var(--surface); border-radius: 6px; padding: 10px 14px;
+    margin-bottom: 12px; font-size: 0.92rem;
+  }
+  .notice.stale { border-left-color: var(--waiting); }
+  .paraphrase {
+    font-size: 1.1rem; font-weight: 600; line-height: 1.45;
+    margin: 0 0 14px; padding: 0;
+  }
+  .link-btn {
+    font: inherit; background: none; border: none; padding: 0;
+    color: var(--accent); text-decoration: underline; cursor: pointer;
+    min-height: 44px;
+  }
+  .sources li { margin-bottom: 10px; }
+  .sources a { color: var(--accent); }
+  [hidden] { display: none !important; }
+  .muted { color: var(--ink-soft); font-size: 0.9rem; }
+  .row-actions { margin-top: 6px; display: flex; gap: 14px; }
+  .row-actions button {
+    font: inherit; font-size: 0.82rem; background: none; border: none;
+    padding: 0; color: var(--ink-soft); text-decoration: underline;
+    cursor: pointer; min-height: 28px;
+  }
+  .row-actions button:hover { color: var(--accent); }
+  footer { max-width: 1040px; margin: 0 auto; padding: 8px 20px 40px; }
+</style>
+</head>
+<body>
+<a class="skip" href="#content">Skip to main content</a>
+
+<header class="top">
+  <div class="top-inner">
+    <h1>Civic Breadcrumbs</h1>
+    <p class="tagline">Government shouldn&rsquo;t make you start over.</p>
+  </div>
+</header>
+
+<main>
+  <nav aria-label="Your journeys">
+    <div class="card">
+      <h2 id="journeys-heading">Your journeys</h2>
+      <ul id="journey-list" aria-labelledby="journeys-heading"></ul>
+      <button class="act" id="new-journey-btn" style="width:100%;margin-top:10px">
+        + New journey
+      </button>
+    </div>
+  </nav>
+
+  <div id="content">
+    <!-- New journey -->
+    <section class="card" id="new-journey-panel" hidden aria-labelledby="nj-h">
+      <h2 id="nj-h">What are you trying to get done?</h2>
+      <label for="nj-text">Describe it in your own words</label>
+      <textarea id="nj-text" placeholder="I applied to extend my study permit and I am not sure what I need to do next."></textarea>
+      <div class="actions" style="margin-top:12px">
+        <button class="act primary" id="nj-create">Create journey</button>
+        <button class="act" id="nj-cancel">Cancel</button>
+      </div>
+    </section>
+
+    <!-- Journey header + current state -->
+    <section class="card here" id="state-panel" aria-labelledby="journey-title">
+      <h3 id="journey-title">Loading&hellip;</h3>
+      <p class="goal" id="journey-goal"></p>
+      <p><span class="pill ACTIVE" id="status-pill">&nbsp;</span></p>
+
+      <p class="notice" id="action-feedback" hidden role="status" aria-live="polite"></p>
+
+      <div aria-live="polite" id="state-live">
+        <p class="notice stale" id="staleness-banner" hidden></p>
+        <p class="label">You are here</p>
+        <p class="state" id="current-state"></p>
+        <div class="next">
+          <p class="label">Next recorded action</p>
+          <p id="next-action" style="margin:4px 0 0"></p>
+        </div>
+        <p class="provenance" id="provenance"></p>
+      </div>
+
+      <div class="actions" style="margin-top:16px">
+        <button class="act primary" id="btn-what">+ What happened?</button>
+        <button class="act" id="btn-stuck">I&rsquo;m stuck</button>
+        <button class="act" id="btn-who">Who handles this?</button>
+        <button class="act" id="btn-handoff">Hand me off</button>
+      </div>
+    </section>
+
+    <!-- Add breadcrumb: step 1, describe -->
+    <section class="card" id="add-panel" hidden aria-labelledby="add-h">
+      <h2 id="add-h">What happened?</h2>
+      <label for="add-text">Tell it the way you would tell a friend</label>
+      <textarea id="add-text" placeholder="I called IRCC today. They said my application is still processing and told me not to submit another one."></textarea>
+      <div class="actions" style="margin-top:12px">
+        <button class="act primary" id="add-interpret">Continue</button>
+        <button class="act" id="add-note">Just save my note</button>
+        <button class="act" id="add-cancel">Cancel</button>
+      </div>
+      <p class="muted" style="margin-top:10px">
+        Your own words are always kept, exactly as you wrote them.
+      </p>
+    </section>
+
+    <!-- Add breadcrumb: step 2, confirm -->
+    <!--
+      One tap in the common case: the AI's plain-English understanding is the
+      headline, with one big primary action. Full editing is one click away
+      via "Edit details," not the default view -- this is the resolution to
+      "don't make it feel like filling another form": the two-call
+      interpret-then-confirm API contract (CLAUDE.md §24) is unchanged, only
+      how much of it the citizen has to look at by default.
+    -->
+    <section class="card" id="review-panel" hidden aria-labelledby="review-h">
+      <h2 id="review-h">Confirm what happened</h2>
+      <div class="notice" id="review-notice" hidden></div>
+
+      <div id="review-confirm-view">
+        <p class="paraphrase" id="review-paraphrase"></p>
+        <p class="muted">You wrote:</p>
+        <p class="said" id="review-raw"></p>
+        <div class="actions" style="margin-top:16px">
+          <button class="act primary" id="review-yes">Yes, that's right</button>
+          <button class="act" id="review-edit-details">Edit details</button>
+          <button class="act" id="review-cancel">Cancel</button>
+        </div>
+      </div>
+
+      <div id="review-form-view" hidden>
+        <p class="muted">You wrote:</p>
+        <p class="said" id="review-raw-form"></p>
+
+        <div class="grid2">
+          <div>
+            <label for="f-kind">What kind of thing was it?</label>
+            <select id="f-kind">
+              <option value="INTERACTION">Contact with an organization</option>
+              <option value="ACTION">Something I did</option>
+              <option value="STATUS_UPDATE">A status update I received</option>
+              <option value="DOCUMENT">A document</option>
+              <option value="SOURCE">Something official I read</option>
+              <option value="NOTE">A note</option>
+            </select>
+          </div>
+          <div>
+            <label for="f-channel">How did it happen?</label>
+            <select id="f-channel">
+              <option value="PHONE">Phone call</option>
+              <option value="EMAIL">Email</option>
+              <option value="IN_PERSON">In person</option>
+              <option value="WEB">Website</option>
+              <option value="LETTER">Letter</option>
+              <option value="UPLOAD">Upload</option>
+              <option value="OTHER">Other</option>
+              <option value="UNKNOWN">Not sure</option>
+            </select>
+          </div>
+          <div>
+            <label for="f-org">Which organization?</label>
+            <select id="f-org"></select>
+          </div>
+          <div>
+            <label for="f-date">When?</label>
+            <input type="date" id="f-date">
+          </div>
+          <div>
+            <label for="f-status">What did they say the status was?</label>
+            <select id="f-status">
+              <option value="UNKNOWN">They did not say</option>
+              <option value="SUBMITTED">Submitted</option>
+              <option value="RECEIVED">Received</option>
+              <option value="PROCESSING">Still processing</option>
+              <option value="UNDER_REVIEW">Under review</option>
+              <option value="INCOMPLETE">Incomplete</option>
+              <option value="ADDITIONAL_INFO_REQUIRED">They need more from me</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REFUSED">Refused</option>
+              <option value="RESOLVED">Resolved</option>
+            </select>
+          </div>
+          <div>
+            <label for="f-next">What should happen next?</label>
+            <select id="f-next">
+              <option value="NONE">Nothing recorded</option>
+              <option value="WAIT">Wait</option>
+              <option value="PROVIDE_DOCUMENT">Provide a document</option>
+              <option value="UPLOAD">Upload something</option>
+              <option value="SUBMIT">Submit something</option>
+              <option value="CALL">Call them</option>
+              <option value="VISIT">Visit in person</option>
+              <option value="CONTACT_ORGANIZATION">Contact them</option>
+            </select>
+          </div>
+        </div>
+
+        <label for="f-title">Short label for your timeline</label>
+        <input type="text" id="f-title">
+
+        <label for="f-instruction">What did they tell you to do?</label>
+        <input type="text" id="f-instruction">
+
+        <div class="actions" style="margin-top:16px">
+          <button class="act primary" id="review-confirm">Save to my journey</button>
+          <button class="act" id="review-note">Save as a plain note instead</button>
+          <button class="act" id="review-form-cancel">Cancel</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- I'm stuck -->
+    <section class="card" id="stuck-panel" hidden aria-labelledby="stuck-h">
+      <h2 id="stuck-h">Where you left off</h2>
+      <div class="notice" id="stuck-generated" hidden></div>
+      <p id="stuck-summary" style="font-size:1.08rem"></p>
+      <p><strong>Still unresolved:</strong> <span id="stuck-unresolved"></span></p>
+      <p><strong>Last instruction you recorded:</strong> <span id="stuck-instruction"></span></p>
+      <div id="stuck-org"></div>
+      <h2 style="margin-top:18px">Official sources</h2>
+      <ul class="sources" id="stuck-sources"></ul>
+      <div class="actions" style="margin-top:12px">
+        <button class="act" id="stuck-close">Close</button>
+      </div>
+    </section>
+
+    <!-- Who handles this -->
+    <section class="card" id="who-panel" hidden aria-labelledby="who-h">
+      <h2 id="who-h">Who is responsible for your next step?</h2>
+      <div id="who-body"></div>
+      <div class="actions" style="margin-top:12px">
+        <button class="act" id="who-close">Close</button>
+      </div>
+    </section>
+
+    <!-- Handoff -->
+    <section class="card" id="handoff-panel" hidden aria-labelledby="handoff-h">
+      <h2 id="handoff-h">Hand this to the next person</h2>
+      <div class="notice" id="handoff-generated" hidden></div>
+      <pre class="summary" id="handoff-text"></pre>
+      <div class="actions" style="margin-top:12px">
+        <button class="act primary" id="handoff-copy">Copy summary</button>
+        <button class="act" id="handoff-close">Close</button>
+      </div>
+      <p class="muted" id="handoff-copied" hidden role="status">Copied to your clipboard.</p>
+    </section>
+
+    <!-- Timeline -->
+    <section class="card" aria-labelledby="timeline-h">
+      <h2 id="timeline-h">Your timeline</h2>
+      <ol class="timeline" id="timeline"></ol>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <p class="muted">
+    A citizen-owned record, not an official government file. Demo data is
+    synthetic. <a href="/api/docs/">API documentation</a>
+  </p>
+</footer>
+
+<script src="{% static 'demo/app.js' %}"></script>
+</body>
+</html>

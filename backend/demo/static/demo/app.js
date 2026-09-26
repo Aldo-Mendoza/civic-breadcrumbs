@@ -1,749 +1,631 @@
-/*
- * Demo interface logic.
- *
- * Plain ES2020, no framework, no build step. The point of this file is to prove
- * the API is complete and usable: every panel here is driven purely by the
- * documented endpoints, with no client-side business logic. State derivation,
- * organization resolution and summary wording all come from the server, so this
- * file has no opinion about what the journey means.
- */
 (function () {
   "use strict";
 
   const API = "/api/v1";
-  let journeys = [];
-  let organizations = [];
-  let currentId = null;
-  let lastDraft = null;
-  let lastRawText = "";
-  // Set only while correcting an existing record (Edit on a timeline row);
-  // null means the form, when shown, will POST a new breadcrumb instead.
-  let editingBreadcrumbId = null;
-
-  // --- tiny helpers -------------------------------------------------------
-
   const $ = (id) => document.getElementById(id);
+  const state = {
+    journeys: [],
+    organizations: [],
+    current: null,
+    draft: null,
+    rawText: "",
+    editing: null,
+    activeGuideStep: null,
+    csrfToken: "",
+    accessToken: "",
+    auth0: null,
+    authMode: "guest",
+  };
 
-  const PANELS = [
-    "new-journey-panel",
-    "add-panel",
-    "review-panel",
-    "stuck-panel",
-    "who-panel",
-    "handoff-panel",
-  ];
-
-  function show(id) {
-    PANELS.forEach((p) => {
-      $(p).hidden = p !== id;
-    });
-    if (id) {
-      const panel = $(id);
-      // Bring the panel into view and move focus to its heading, so both
-      // sighted and screen-reader users land on the new content.
-      panel.scrollIntoView({ behavior: "smooth", block: "start" });
-      const heading = panel.querySelector("h2");
-      if (heading) {
-        heading.setAttribute("tabindex", "-1");
-        heading.focus({ preventScroll: true });
-      }
-    }
-  }
-
-  function hideAll() {
-    PANELS.forEach((p) => {
-      $(p).hidden = true;
-    });
-    resetReviewPanelToCreateMode();
-  }
-
-  function resetReviewPanelToCreateMode() {
-    editingBreadcrumbId = null;
-    $("review-h").textContent = "Confirm what happened";
-    $("review-confirm").textContent = "Save to my journey";
-    $("review-note").hidden = false;
-  }
-
-  async function api(path, options) {
-    const response = await fetch(API + path, Object.assign({
-      headers: { "Content-Type": "application/json" },
-    }, options || {}));
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      // The server always supplies a readable message and a suggested action.
-      const err = body.error || {};
-      const message = err.message || "Something went wrong.";
-      alert(message);
-      throw new Error(err.code || "REQUEST_FAILED");
-    }
-    return body;
-  }
-
-  function formatDate(value) {
-    if (!value) return "";
-    const d = new Date(value);
-    if (isNaN(d)) return String(value);
-    return d.toLocaleDateString(undefined, {
-      year: "numeric", month: "long", day: "numeric",
-    });
-  }
-
-  /*
-   * Provenance as words.
-   *
-   * Never colour alone: a label has to survive greyscale, low vision and a
-   * screen reader (README §26). "Recorded by you" also reads more honestly than
-   * a coloured dot nobody has a legend for.
-   */
+  const STATUS_LABELS = {
+    ACTIVE: "Active",
+    WAITING: "Waiting",
+    ACTION_REQUIRED: "Action needed",
+    COMPLETED: "Complete",
+    ARCHIVED: "Archived",
+  };
   const SOURCE_LABELS = {
     USER_REPORTED: "Recorded by you",
     OFFICIAL: "Official source",
     COMMUNITY: "Community source",
-    AI_INTERPRETATION: "AI interpretation - not evidence",
+    AI_INTERPRETATION: "AI interpretation",
+  };
+  const KIND_LABELS = {
+    INTERACTION: "Interaction",
+    ACTION: "Action",
+    STATUS_UPDATE: "Status update",
+    DOCUMENT: "Document",
+    SOURCE: "Official source",
+    NOTE: "Note",
+  };
+  const GUIDE_STATUS_LABELS = {
+    NOT_STARTED: "Not started",
+    IN_PROGRESS: "In progress",
+    COMPLETED: "Complete",
   };
 
-  const CHANNEL_LABELS = {
-    PHONE: "Phone", EMAIL: "Email", IN_PERSON: "In person", WEB: "Website",
-    LETTER: "Letter", UPLOAD: "Upload", OTHER: "Other", UNKNOWN: "",
-  };
+  function escapeHTML(value) {
+    const node = document.createElement("div");
+    node.textContent = value == null ? "" : String(value);
+    return node.innerHTML;
+  }
 
-  const STATUS_WORDS = {
-    WAITING: "Waiting", ACTION_REQUIRED: "Action needed",
-    COMPLETED: "Completed", ACTIVE: "Active", ARCHIVED: "Archived",
-  };
+  function formatDate(value) {
+    if (!value) return "Date not specified";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  }
 
-  // --- rendering ----------------------------------------------------------
+  function today() {
+    return new Date().toISOString().slice(0, 10);
+  }
 
-  function renderJourneyList() {
+  function toast(message) {
+    const el = $("toast");
+    el.textContent = message;
+    el.hidden = false;
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => { el.hidden = true; }, 4200);
+  }
+
+  async function api(path, options) {
+    const supplied = options || {};
+    const headers = Object.assign({ "Content-Type": "application/json" }, supplied.headers || {});
+    if (state.csrfToken) headers["X-CSRFToken"] = state.csrfToken;
+    if (state.accessToken) headers.Authorization = "Bearer " + state.accessToken;
+    const response = await fetch(API + path, Object.assign({ credentials: "include" }, supplied, { headers }));
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = body.error || {};
+      const failure = new Error(error.message || "That request could not be completed.");
+      failure.code = error.code || "REQUEST_FAILED";
+      failure.body = body;
+      failure.status = response.status;
+      throw failure;
+    }
+    return body;
+  }
+
+  function openModal(id) {
+    const shell = $(id);
+    shell.hidden = false;
+    document.body.style.overflow = "hidden";
+    const focusable = shell.querySelector("button, input, textarea, select");
+    if (focusable) setTimeout(() => focusable.focus(), 0);
+  }
+
+  function closeModal(id) {
+    $(id).hidden = true;
+    if (!document.querySelector(".modal-shell:not([hidden])")) document.body.style.overflow = "";
+  }
+
+  function showScreen(name) {
+    $("create-screen").hidden = name !== "create";
+    $("journey-screen").hidden = name !== "journey";
+    $("completion-screen").hidden = name !== "completion";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function openSidebar() {
+    $("sidebar").classList.add("open");
+    $("sidebar").setAttribute("aria-hidden", "false");
+    $("sidebar").removeAttribute("inert");
+    $("sidebar-scrim").hidden = false;
+    $("menu-button").setAttribute("aria-expanded", "true");
+  }
+
+  function closeSidebar() {
+    $("sidebar").classList.remove("open");
+    $("sidebar").setAttribute("aria-hidden", "true");
+    $("sidebar").setAttribute("inert", "");
+    $("sidebar-scrim").hidden = true;
+    $("menu-button").setAttribute("aria-expanded", "false");
+  }
+
+  async function setupAuth() {
+    const csrfResponse = await fetch(API + "/auth/csrf/", { credentials: "include" });
+    state.csrfToken = (await csrfResponse.json()).csrf_token || "";
+    const config = await fetch(API + "/auth/config/", { credentials: "include" }).then((r) => r.json());
+    if (config.enabled && typeof createAuth0Client === "function") {
+      state.auth0 = await createAuth0Client({
+        domain: config.domain,
+        clientId: config.client_id,
+        cacheLocation: "memory",
+        authorizationParams: {
+          audience: config.audience,
+          redirect_uri: window.location.origin + window.location.pathname,
+        },
+      });
+      if (location.search.includes("code=") && location.search.includes("state=")) {
+        await state.auth0.handleRedirectCallback();
+        history.replaceState({}, document.title, location.pathname);
+      }
+      if (await state.auth0.isAuthenticated()) {
+        state.accessToken = await state.auth0.getTokenSilently();
+        try {
+          const migrated = await api("/auth/migrate-guest/", { method: "POST", body: "{}" });
+          if (migrated.status === "migrated" && migrated.migrated_count) toast("Your guest Journey is now saved to your account.");
+        } catch (error) {
+          if (error.code === "GUEST_MIGRATION_BLOCKED") toast(error.message);
+        }
+      }
+    }
+    const status = await api("/auth/status/");
+    state.authMode = status.mode;
+  }
+
+  function renderSidebar() {
     const list = $("journey-list");
     list.innerHTML = "";
-    journeys.forEach((journey) => {
+    state.journeys.forEach((journey) => {
       const li = document.createElement("li");
       const button = document.createElement("button");
-      button.className = "journey-btn";
-      button.type = "button";
-      button.setAttribute("aria-current", journey.id === currentId ? "true" : "false");
-      button.innerHTML =
-        "<strong></strong><small></small>";
-      button.querySelector("strong").textContent = journey.title;
-      button.querySelector("small").textContent =
-        (STATUS_WORDS[journey.status] || journey.status) +
-        " · " + journey.breadcrumb_count + " recorded";
-      button.addEventListener("click", () => selectJourney(journey.id));
+      button.className = state.current && state.current.id === journey.id ? "active" : "";
+      button.innerHTML = `<strong>${escapeHTML(journey.title)}</strong><small>${escapeHTML(STATUS_LABELS[journey.status] || journey.status)}</small>`;
+      button.addEventListener("click", async () => { closeSidebar(); await selectJourney(journey.id); });
       li.appendChild(button);
       list.appendChild(li);
     });
   }
 
-  function renderState(journey) {
-    const state = journey.state || {};
-    $("journey-title").textContent = journey.title;
-    $("journey-goal").textContent = journey.goal || "";
-
-    const pill = $("status-pill");
-    pill.className = "pill " + (state.status || "ACTIVE");
-    pill.textContent = STATUS_WORDS[state.status] || state.status || "";
-
-    $("current-state").textContent = state.current_state || "";
-    $("next-action").textContent = state.next_action || "";
-
-    // Always cite where the answer came from.
-    const source = state.source || {};
-    const parts = [];
-    if (state.last_event && state.last_event.summary) {
-      parts.push(state.last_event.summary);
-    }
-    if (source.type) {
-      parts.push(SOURCE_LABELS[source.type] || source.type);
-    }
-    if (typeof state.evidence_count === "number") {
-      parts.push(
-        state.evidence_count + (state.evidence_count === 1 ? " confirmed record" : " confirmed records")
-      );
-    }
-    $("provenance").textContent = parts.join(" · ");
-
-    // Proactive check-in: the app saying something without being asked. This
-    // only ever describes when *you* last recorded something -- never a
-    // government processing-time claim (server enforces that; see
-    // apps/journeys/state.py compute_staleness).
-    const staleness = state.staleness || {};
-    const banner = $("staleness-banner");
-    banner.hidden = !staleness.is_stale;
-    banner.textContent = staleness.message || "";
-  }
-
-  /*
-   * Closes the loop: what a create/correct/delete actually did, in the
-   * citizen's own words, instead of the timeline just silently refreshing.
-   */
-  function showActionFeedback(change) {
-    const el = $("action-feedback");
-    if (!change || !change.message) {
-      el.hidden = true;
-      return;
-    }
-    el.hidden = false;
-    el.textContent = change.message;
-  }
-
-  function renderTimeline(rows) {
-    const list = $("timeline");
-    list.innerHTML = "";
-    if (!rows || !rows.length) {
-      const li = document.createElement("li");
-      li.className = "muted";
-      li.textContent = "Nothing recorded yet. Use “What happened?” to start.";
-      list.appendChild(li);
-      return;
-    }
-    rows.forEach((row) => {
-      const li = document.createElement("li");
-
-      const when = document.createElement("p");
-      when.className = "when";
-      when.style.margin = "0";
-      when.textContent = formatDate(row.occurred_at);
-      li.appendChild(when);
-
-      const what = document.createElement("p");
-      what.className = "what";
-      what.style.margin = "2px 0 0";
-      what.textContent = row.title;
-      li.appendChild(what);
-
-      if (row.instruction) {
-        const said = document.createElement("p");
-        said.className = "said";
-        said.textContent = "“" + row.instruction + "”";
-        li.appendChild(said);
-      }
-
-      const tags = document.createElement("p");
-      tags.style.margin = "0";
-      [
-        row.organization_display,
-        CHANNEL_LABELS[row.channel],
-        SOURCE_LABELS[row.source_type],
-      ].filter(Boolean).forEach((text) => {
-        const tag = document.createElement("span");
-        tag.className = "tag";
-        tag.textContent = text;
-        tags.appendChild(tag);
-      });
-      li.appendChild(tags);
-
-      // The backend has always supported correcting and deleting a record
-      // (§25/§9.1: recalculation on either); this is what actually lets
-      // "closes the loop" be seen working in the product, not just the API.
-      const rowActions = document.createElement("p");
-      rowActions.className = "row-actions";
-
-      const editBtn = document.createElement("button");
-      editBtn.type = "button";
-      editBtn.textContent = "Edit";
-      editBtn.setAttribute("aria-label", "Edit: " + row.title);
-      editBtn.addEventListener("click", () => startEditBreadcrumb(row.id));
-      rowActions.appendChild(editBtn);
-
-      const deleteBtn = document.createElement("button");
-      deleteBtn.type = "button";
-      deleteBtn.textContent = "Delete";
-      deleteBtn.setAttribute("aria-label", "Delete: " + row.title);
-      deleteBtn.addEventListener("click", () => deleteBreadcrumbRow(row.id, row.title));
-      rowActions.appendChild(deleteBtn);
-
-      li.appendChild(rowActions);
-
-      list.appendChild(li);
-    });
-  }
-
-  // --- data ---------------------------------------------------------------
-
   async function loadJourneys() {
     const body = await api("/journeys/");
-    journeys = body.results || [];
-    renderJourneyList();
-    if (!currentId && journeys.length) {
-      await selectJourney(journeys[0].id);
-    } else if (!journeys.length) {
-      $("journey-title").textContent = "No journeys yet";
-      $("journey-goal").textContent = "Create one to get started.";
-      renderTimeline([]);
-    }
+    state.journeys = body.results || [];
+    renderSidebar();
+    return state.journeys;
   }
 
-  async function loadOrganizations() {
-    const body = await api("/organizations/");
-    organizations = body.results || [];
-    const select = $("f-org");
-    select.innerHTML = "";
-    const blank = document.createElement("option");
-    blank.value = "";
-    blank.textContent = "Not sure / not listed";
-    select.appendChild(blank);
-    organizations.forEach((org) => {
-      const option = document.createElement("option");
-      option.value = org.name;
-      option.textContent = org.short_name || org.name;
-      select.appendChild(option);
+  async function selectJourney(id, forceJourneyScreen) {
+    state.current = await api("/journeys/" + id + "/");
+    renderJourney();
+    renderSidebar();
+    if (!forceJourneyScreen && state.current.state.status === "COMPLETED") renderCompletion();
+    else showScreen("journey");
+  }
+
+  function renderJourney() {
+    const journey = state.current;
+    if (!journey) return;
+    $("journey-title").textContent = journey.title;
+    $("journey-goal").textContent = journey.goal;
+    $("current-state").textContent = journey.state.current_state;
+    $("next-action").textContent = journey.state.next_action || "No next action has been recorded.";
+    const status = $("status-pill");
+    status.className = "status-pill " + journey.state.status;
+    status.textContent = STATUS_LABELS[journey.state.status] || journey.state.status;
+    const count = (journey.timeline || []).length;
+    $("record-count").textContent = count + (count === 1 ? " recorded event" : " recorded events");
+    const source = journey.state.source || {};
+    $("state-source").textContent = source.type ? (SOURCE_LABELS[source.type] || source.type) + " • derived from your confirmed timeline" : "Derived from confirmed records only";
+    $("record-context").textContent = journey.title + " • " + (STATUS_LABELS[journey.state.status] || journey.state.status);
+    renderGuide();
+
+    const timeline = $("timeline-list");
+    timeline.innerHTML = "";
+    const rows = (journey.timeline || []).slice().reverse();
+    $("empty-timeline").hidden = rows.length > 0;
+    rows.forEach((row, index) => {
+      const li = document.createElement("li");
+      li.className = "timeline-item";
+      li.tabIndex = 0;
+      li.innerHTML = `
+        <span class="step-orb">${rows.length - index}</span>
+        <div class="timeline-copy"><strong>${escapeHTML(row.title)}</strong><p>${escapeHTML(formatDate(row.occurred_at))}${row.organization_display ? " • " + escapeHTML(row.organization_display) : ""}</p></div>
+        <span class="event-status">${escapeHTML(KIND_LABELS[row.kind] || row.kind)}</span><span class="chevron">›</span>`;
+      const open = () => openExistingEvent(row.id);
+      li.addEventListener("click", open);
+      li.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(); } });
+      timeline.appendChild(li);
     });
   }
 
-  async function selectJourney(id) {
-    currentId = id;
-    hideAll();
-    $("action-feedback").hidden = true; // feedback is per-journey, not global
-    const journey = await api("/journeys/" + id + "/");
-    renderState(journey);
-    renderTimeline(journey.timeline);
-    renderJourneyList();
+  function renderGuide() {
+    const guide = state.current && state.current.guide;
+    const list = $("guide-step-list");
+    list.innerHTML = "";
+    if (!guide) {
+      $("guide-summary").textContent = "No suggested guide is available for this Journey yet.";
+      $("guide-progress-label").textContent = "0 of 0 steps complete";
+      $("guide-progress-bar").style.width = "0%";
+      $("guide-clarification").hidden = true;
+      return;
+    }
+    const steps = guide.steps || [];
+    const completed = steps.filter((step) => step.status === "COMPLETED").length;
+    $("guide-summary").textContent = guide.summary;
+    $("guide-progress-label").textContent = `${completed} of ${steps.length} steps complete`;
+    $("guide-progress-bar").style.width = steps.length ? `${Math.round((completed / steps.length) * 100)}%` : "0%";
+    const clarification = $("guide-clarification");
+    clarification.hidden = !guide.needs_clarification;
+    clarification.textContent = guide.needs_clarification ? `One detail will improve this guide: ${guide.clarification_question}` : "";
+    steps.forEach((step) => {
+      const li = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "guide-step" + (step.status === "IN_PROGRESS" ? " current" : "");
+      button.innerHTML = `
+        <span class="step-orb ${step.status === "COMPLETED" ? "complete" : ""}">${step.position}</span>
+        <span class="guide-step-copy"><strong>${escapeHTML(step.title)}</strong><p>${escapeHTML(step.description)}</p></span>
+        <span class="guide-step-status ${escapeHTML(step.status)}">${escapeHTML(GUIDE_STATUS_LABELS[step.status] || step.status)}</span>
+        <span class="chevron">›</span>`;
+      button.addEventListener("click", () => openGuideStep(step));
+      li.appendChild(button);
+      list.appendChild(li);
+    });
   }
 
-  async function refresh() {
-    const journey = await api("/journeys/" + currentId + "/");
-    renderState(journey);
-    renderTimeline(journey.timeline);
-    await loadJourneys();
-  }
-
-  // --- actions ------------------------------------------------------------
-
-  $("new-journey-btn").addEventListener("click", () => {
-    $("nj-text").value = "";
-    show("new-journey-panel");
-  });
-  $("nj-cancel").addEventListener("click", hideAll);
-
-  $("nj-create").addEventListener("click", async (event) => {
-    const text = $("nj-text").value.trim();
-    if (!text) return;
-    event.target.disabled = true;          // no double-submit (§25)
-    try {
-      const body = await api("/journeys/", {
-        method: "POST",
-        body: JSON.stringify({ description: text }),
-      });
-      if (body.type === "OUT_OF_SCOPE") {
-        alert(body.message);
-        return;
-      }
-      hideAll();
-      await loadJourneys();
-      await selectJourney(body.id);
-    } finally {
-      event.target.disabled = false;
-    }
-  });
-
-  $("btn-what").addEventListener("click", () => {
-    $("add-text").value = "";
-    show("add-panel");
-  });
-  $("add-cancel").addEventListener("click", hideAll);
-  $("review-cancel").addEventListener("click", hideAll);
-  $("stuck-close").addEventListener("click", hideAll);
-  $("who-close").addEventListener("click", hideAll);
-  $("handoff-close").addEventListener("click", hideAll);
-
-  $("add-interpret").addEventListener("click", async (event) => {
-    const text = $("add-text").value.trim();
-    if (!text) return;
-    event.target.disabled = true;
-    try {
-      const body = await api(
-        "/journeys/" + currentId + "/breadcrumbs/interpret/",
-        { method: "POST", body: JSON.stringify({ text: text }) }
-      );
-
-      if (body.type === "OUT_OF_SCOPE") {
-        alert(body.message);
-        return;
-      }
-
-      presentDraft(body);
-      show("review-panel");
-    } finally {
-      event.target.disabled = false;
-    }
-  });
-
-  /*
-   * "AI understands and reflects it back."
-   *
-   * The common, high-confidence case is one tap: the paraphrase is the
-   * headline, "Yes, that's right" saves the AI's fields verbatim, and the full
-   * field-by-field form is one click away rather than the default view. A
-   * draft the system itself flagged as needing clarification skips straight
-   * to the form instead -- offering a fake one-tap confirm for something it
-   * already said it wasn't sure about would be dishonest.
-   */
-  function presentDraft(body) {
-    const draft = body.draft;
-    lastDraft = draft;
-    lastRawText = body.raw_text;
-    resetReviewPanelToCreateMode();
-
-    $("review-paraphrase").textContent = draft.paraphrase || "";
-    $("review-raw").textContent = "“" + body.raw_text + "”";
-    $("review-raw-form").textContent = "“" + body.raw_text + "”";
-    fillFormFields(draft);
-
-    const notice = $("review-notice");
-    const messages = [];
-    if (body.needs_clarification && body.clarification_question) {
-      messages.push(body.clarification_question);
-    }
-    if (body.ai && body.ai.degraded) {
-      messages.push(
-        "AI was unavailable, so this was organized without it. Please check it."
-      );
-    }
-    notice.hidden = messages.length === 0;
-    notice.textContent = messages.join(" ");
-
-    // A confident draft gets the one-tap path; a flagged one goes straight to
-    // the form, because it already told us it wasn't sure (§14 Rule 4).
-    if (body.needs_clarification) {
-      showReviewFormView();
+  function openGuideStep(step) {
+    state.activeGuideStep = step;
+    $("guide-step-position").textContent = `Step ${step.position} of ${(state.current.guide.steps || []).length} • ${GUIDE_STATUS_LABELS[step.status] || step.status}`;
+    $("guide-step-title").textContent = step.title;
+    $("guide-step-description").textContent = step.description;
+    const source = $("guide-step-source");
+    if (step.official_source) {
+      source.hidden = false;
+      source.innerHTML = `<strong>Verified official source</strong><p>${escapeHTML(step.official_source.description || "Check the current official instructions before acting.")}</p><a href="${escapeHTML(step.official_source.url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(step.official_source.title)} ↗</a>`;
     } else {
-      showReviewConfirmView();
+      source.hidden = true;
+      source.innerHTML = "";
     }
+    $("complete-guide-step").disabled = step.status === "COMPLETED";
+    $("complete-guide-step").textContent = step.status === "COMPLETED" ? "Step complete" : "Mark step complete →";
+    openModal("guide-step-modal");
   }
 
-  function showReviewConfirmView() {
-    $("review-confirm-view").hidden = false;
-    $("review-form-view").hidden = true;
+  function renderCompletion() {
+    const journey = state.current;
+    $("completion-label").textContent = journey.title;
+    const list = $("completion-list");
+    list.innerHTML = "";
+    const completedSteps = ((journey.guide && journey.guide.steps) || []).filter((step) => step.status === "COMPLETED");
+    completedSteps.forEach((step) => {
+      const div = document.createElement("div");
+      div.className = "completion-row";
+      div.innerHTML = `<span>✓</span><strong>${escapeHTML(step.title)}</strong>`;
+      list.appendChild(div);
+    });
+    showScreen("completion");
   }
 
-  function showReviewFormView() {
-    $("review-confirm-view").hidden = true;
-    $("review-form-view").hidden = false;
+  async function refreshCurrent(message) {
+    if (!state.current) return;
+    await loadJourneys();
+    state.current = await api("/journeys/" + state.current.id + "/");
+    renderJourney();
+    if (message) {
+      $("action-feedback").textContent = message;
+      $("action-feedback").hidden = false;
+    }
+    if (state.current.state.status === "COMPLETED") renderCompletion();
   }
 
-  function fillFormFields(draft) {
-    $("f-kind").value = draft.kind;
-    $("f-channel").value = draft.channel;
-    $("f-org").value = draft.organization || "";
-    $("f-date").value = draft.occurred_on || "";
-    $("f-status").value = draft.reported_status;
-    $("f-next").value = draft.suggested_next_action;
-    $("f-title").value = draft.title || "";
-    $("f-instruction").value = draft.instruction || "";
+  function startNewGoal() {
+    state.current = null;
+    $("goal-form").reset();
+    showScreen("create");
+    closeSidebar();
+    setTimeout(() => $("goal-input").focus(), 0);
   }
 
-  function draftToPayload(draft, rawText) {
-    const payload = {
+  function resetRecordModal() {
+    state.draft = null;
+    state.rawText = "";
+    state.editing = null;
+    state.activeGuideStep = null;
+    $("event-text").value = "";
+    $("record-input-stage").hidden = false;
+    $("record-review-stage").hidden = true;
+    $("record-edit-stage").hidden = true;
+    $("delete-event").hidden = true;
+    $("details-heading").textContent = "Edit the event";
+  }
+
+  function openRecordModal(guideStep) {
+    resetRecordModal();
+    state.activeGuideStep = guideStep || null;
+    if (guideStep) $("record-context").textContent = `${state.current.title} • Guide step ${guideStep.position}: ${guideStep.title}`;
+    else $("record-context").textContent = state.current.title + " • " + (STATUS_LABELS[state.current.state.status] || state.current.state.status);
+    openModal("record-modal");
+    $("event-text").focus();
+  }
+
+  function fillDetails(data) {
+    $("detail-title").value = data.title || "";
+    $("detail-kind").value = data.kind || "NOTE";
+    $("detail-channel").value = data.channel || "UNKNOWN";
+    $("detail-org").value = data.organization || data.organization_name || "";
+    $("detail-status").value = data.reported_status || "UNKNOWN";
+    $("detail-date").value = data.occurred_on || (data.occurred_at ? String(data.occurred_at).slice(0, 10) : today());
+    $("detail-instruction").value = data.instruction || "";
+  }
+
+  function showDraft(draft, rawText, meta) {
+    state.draft = draft;
+    state.rawText = rawText;
+    $("draft-paraphrase").textContent = draft.paraphrase || draft.title || "Review the details before saving.";
+    $("draft-original").textContent = "You said: “" + rawText + "”";
+    const tags = [KIND_LABELS[draft.kind] || draft.kind, draft.channel !== "UNKNOWN" ? draft.channel.replaceAll("_", " ") : "", draft.organization || ""].filter(Boolean);
+    $("draft-tags").innerHTML = tags.map((tag) => `<span>${escapeHTML(tag)}</span>`).join("");
+    const notice = $("draft-notice");
+    notice.hidden = !(draft.needs_clarification || (meta && meta.degraded));
+    notice.textContent = draft.needs_clarification ? (draft.clarification_question || "Please review the details carefully.") : "Automatic interpretation was unavailable, so a rules-based draft was prepared.";
+    $("record-input-stage").hidden = true;
+    $("record-review-stage").hidden = false;
+  }
+
+  async function interpretEvent() {
+    const text = $("event-text").value.trim();
+    if (!text) return;
+    const button = $("interpret-event");
+    button.disabled = true;
+    try {
+      const result = await api(`/journeys/${state.current.id}/breadcrumbs/interpret/`, { method: "POST", body: JSON.stringify({ text }) });
+      if (result.type === "OUT_OF_SCOPE") { toast(result.message); return; }
+      showDraft(result.draft, result.raw_text, result.ai);
+    } catch (error) { toast(error.message); }
+    finally { button.disabled = false; }
+  }
+
+  function draftPayload() {
+    const draft = state.draft;
+    return {
       kind: draft.kind,
       channel: draft.channel,
       title: draft.title || "Recorded event",
-      raw_text: rawText || "",
+      raw_text: state.rawText,
       organization_name: draft.organization || "",
-      reported_status: draft.reported_status,
+      occurred_on: draft.occurred_on || today(),
+      reported_status: draft.reported_status || "UNKNOWN",
       instruction: draft.instruction || "",
-      suggested_next_action: draft.suggested_next_action,
+      suggested_next_action: draft.suggested_next_action || "NONE",
       reference: draft.reference || "",
+      confidence: draft.confidence,
       extractor: draft.extractor || "",
-      // Idempotency token, so a retry cannot duplicate the record (§25).
-      request_id: "demo-" + Date.now(),
+      request_id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+      guide_step_id: state.activeGuideStep ? state.activeGuideStep.id : null,
     };
-    if (draft.occurred_on) payload.occurred_on = draft.occurred_on;
-    return payload;
   }
 
-  function formToPayload() {
-    const payload = {
-      kind: $("f-kind").value,
-      channel: $("f-channel").value,
-      title: $("f-title").value || "Recorded event",
-      organization_name: $("f-org").value,
-      reported_status: $("f-status").value,
-      instruction: $("f-instruction").value,
-      suggested_next_action: $("f-next").value,
-    };
-    if ($("f-date").value) payload.occurred_on = $("f-date").value;
-    return payload;
-  }
-
-  $("review-yes").addEventListener("click", async (event) => {
-    event.target.disabled = true;
-    try {
-      const payload = draftToPayload(lastDraft, lastRawText);
-      const body = await api("/journeys/" + currentId + "/breadcrumbs/", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-      if (body.warnings && body.warnings.length) {
-        alert(body.warnings[0].message);
-      }
-      hideAll();
-      showActionFeedback(body.change);
-      await refresh();
-    } finally {
-      event.target.disabled = false;
-    }
-  });
-
-  $("review-edit-details").addEventListener("click", showReviewFormView);
-  $("review-form-cancel").addEventListener("click", hideAll);
-
-  $("review-confirm").addEventListener("click", async (event) => {
-    event.target.disabled = true;
-    try {
-      let body;
-      if (editingBreadcrumbId) {
-        const payload = formToPayload();
-        body = await api("/breadcrumbs/" + editingBreadcrumbId + "/", {
-          method: "PATCH",
-          body: JSON.stringify(payload),
-        });
-      } else {
-        const payload = Object.assign(formToPayload(), {
-          raw_text: lastRawText,
-          reference: (lastDraft && lastDraft.reference) || "",
-          extractor: (lastDraft && lastDraft.extractor) || "",
-          request_id: "demo-" + Date.now(),
-        });
-        body = await api("/journeys/" + currentId + "/breadcrumbs/", {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
-        if (body.warnings && body.warnings.length) {
-          alert(body.warnings[0].message);
-        }
-      }
-      hideAll();
-      showActionFeedback(body.change);
-      await refresh();
-    } finally {
-      event.target.disabled = false;
-    }
-  });
-
-  /* Editing (or deleting) an existing timeline record -- the other half of
-   * "closes the loop": the backend has always supported this (PATCH/DELETE on
-   * /breadcrumbs/{id}/), but the demo UI never exposed it, so there was no way
-   * to actually see a correction's effect on the journey without the API. */
-  async function startEditBreadcrumb(breadcrumbId) {
-    const list = await api("/journeys/" + currentId + "/breadcrumbs/");
-    const record = (list.results || []).find((r) => r.id === breadcrumbId);
-    if (!record) return;
-
-    editingBreadcrumbId = breadcrumbId;
-    $("review-h").textContent = "Update this record";
-    $("review-confirm").textContent = "Save correction";
-    $("review-note").hidden = true; // create-only affordance
-
-    $("review-notice").hidden = true;
-    $("review-raw-form").textContent = record.raw_text
-      ? "“" + record.raw_text + "”"
-      : "(no original wording recorded)";
-    fillFormFields({
-      kind: record.kind,
-      channel: record.channel,
-      organization: record.organization ? record.organization.name : "",
-      occurred_on: (record.occurred_at || "").slice(0, 10),
-      reported_status: record.reported_status,
-      suggested_next_action: record.suggested_next_action,
-      title: record.title,
-      instruction: record.instruction,
-    });
-
-    showReviewFormView();
-    show("review-panel");
-  }
-
-  async function deleteBreadcrumbRow(breadcrumbId, title) {
-    if (!window.confirm('Delete "' + title + '" from your timeline?')) return;
-    const body = await api("/breadcrumbs/" + breadcrumbId + "/", {
-      method: "DELETE",
-    });
-    showActionFeedback(body.change);
-    await refresh();
-  }
-
-  async function saveNote(text, button) {
-    if (!text) return;
+  async function confirmDraft() {
+    const button = $("confirm-event");
     button.disabled = true;
     try {
-      const body = await api("/journeys/" + currentId + "/notes/", {
-        method: "POST",
-        body: JSON.stringify({ text: text, request_id: "demo-note-" + Date.now() }),
-      });
-      hideAll();
-      showActionFeedback(body.change);
-      await refresh();
-    } finally {
-      button.disabled = false;
+      const result = await api(`/journeys/${state.current.id}/breadcrumbs/`, { method: "POST", body: JSON.stringify(draftPayload()) });
+      closeModal("record-modal");
+      await refreshCurrent(result.change ? result.change.message : "Added to your Journey.");
+    } catch (error) { toast(error.message); }
+    finally { button.disabled = false; }
+  }
+
+  async function savePlainNote() {
+    const text = $("event-text").value.trim();
+    if (!text) return;
+    const button = $("save-note");
+    button.disabled = true;
+    try {
+      const result = await api(`/journeys/${state.current.id}/notes/`, { method: "POST", body: JSON.stringify({ text, guide_step_id: state.activeGuideStep ? state.activeGuideStep.id : null, request_id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) }) });
+      closeModal("record-modal");
+      await refreshCurrent(result.change ? result.change.message : "Note saved.");
+    } catch (error) { toast(error.message); }
+    finally { button.disabled = false; }
+  }
+
+  function openExistingEvent(id) {
+    const event = (state.current.breadcrumbs || []).find((item) => item.id === id);
+    if (!event) return;
+    resetRecordModal();
+    state.editing = event;
+    fillDetails(event);
+    $("record-input-stage").hidden = true;
+    $("record-edit-stage").hidden = false;
+    $("delete-event").hidden = false;
+    $("details-heading").textContent = "Review recorded event";
+    openModal("record-modal");
+  }
+
+  async function saveDetails(event) {
+    event.preventDefault();
+    const payload = {
+      title: $("detail-title").value.trim(), kind: $("detail-kind").value,
+      channel: $("detail-channel").value, organization_name: $("detail-org").value,
+      reported_status: $("detail-status").value, occurred_on: $("detail-date").value,
+      instruction: $("detail-instruction").value.trim(),
+    };
+    try {
+      if (state.editing) {
+        const result = await api(`/breadcrumbs/${state.editing.id}/`, { method: "PATCH", body: JSON.stringify(payload) });
+        closeModal("record-modal");
+        await refreshCurrent(result.change ? result.change.message : "Event updated.");
+      } else {
+        const full = Object.assign(draftPayload(), payload);
+        const result = await api(`/journeys/${state.current.id}/breadcrumbs/`, { method: "POST", body: JSON.stringify(full) });
+        closeModal("record-modal");
+        await refreshCurrent(result.change ? result.change.message : "Event saved.");
+      }
+    } catch (error) { toast(error.message); }
+  }
+
+  async function deleteEvent() {
+    if (!state.editing || !confirm("Remove this event from your Journey?")) return;
+    try {
+      const result = await api(`/breadcrumbs/${state.editing.id}/`, { method: "DELETE" });
+      closeModal("record-modal");
+      await refreshCurrent(result.change ? result.change.message : "Event removed.");
+    } catch (error) { toast(error.message); }
+  }
+
+  async function showHelp() {
+    openModal("help-modal");
+    $("help-context").textContent = state.current.title + " • Your current recorded state";
+    $("help-summary").innerHTML = '<div class="help-block"><p>Loading your saved context…</p></div>';
+    try {
+      const body = await api(`/journeys/${state.current.id}/stuck/?polish=false`);
+      const org = body.responsible_organization;
+      $("help-summary").innerHTML = `
+        <div class="help-block"><span>Where you left off</span><p>${escapeHTML(body.summary || state.current.state.current_state)}</p></div>
+        <div class="help-block"><span>Still unresolved</span><p>${escapeHTML(body.unresolved_issue || "No unresolved issue is recorded.")}</p></div>
+        <div class="help-block"><span>Last recorded instruction</span><p>${escapeHTML(body.latest_instruction || "No instruction has been recorded.")}</p></div>
+        <div class="help-block"><span>Responsible organization</span><p>${escapeHTML(org ? (org.short_name || org.name) : "Not enough verified information yet")}</p></div>`;
+    } catch (error) { $("help-summary").innerHTML = `<div class="notice">${escapeHTML(error.message)}</div>`; }
+  }
+
+  function showInfo(title, eyebrow, html) {
+    $("info-title").textContent = title;
+    $("info-eyebrow").textContent = eyebrow;
+    $("info-content").innerHTML = html;
+    openModal("info-modal");
+  }
+
+  async function showOrganization() {
+    showInfo("Finding the responsible organization…", "Verified directory", "<p>Loading…</p>");
+    try {
+      const body = await api(`/journeys/${state.current.id}/responsible-organization/`);
+      if (!body.responsible_organization) { showInfo("We don’t have enough verified information", "Who handles this?", `<p>${escapeHTML(body.message)}</p>`); return; }
+      const org = body.responsible_organization;
+      const sources = (body.official_sources || []).map((source) => `<li><a href="${escapeHTML(source.url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(source.title)}</a></li>`).join("");
+      showInfo(org.short_name || org.name, "Responsible organization", `<p>${escapeHTML(body.message || body.basis || "Matched from the curated directory.")}</p><p><a href="${escapeHTML(org.official_url)}" target="_blank" rel="noopener noreferrer">Open official website ↗</a></p>${sources ? `<h3>Official sources</h3><ul class="source-list">${sources}</ul>` : ""}`);
+    } catch (error) { showInfo("Could not load the directory", "Who handles this?", `<p>${escapeHTML(error.message)}</p>`); }
+  }
+
+  async function showHandoff() {
+    showInfo("Preparing your handoff…", "Case summary", "<p>Building a summary from confirmed records only…</p>");
+    try {
+      const body = await api(`/journeys/${state.current.id}/handoff/`, { method: "POST", body: JSON.stringify({ polish: false }) });
+      showInfo("Hand this to the next person", "Case summary", `<pre class="summary-text" id="handoff-summary">${escapeHTML(body.summary)}</pre><p><button class="button primary" id="copy-handoff">Copy summary</button></p>`);
+      $("copy-handoff").addEventListener("click", async () => { await navigator.clipboard.writeText(body.summary); toast("Handoff copied."); });
+    } catch (error) { showInfo("Could not prepare the handoff", "Case summary", `<p>${escapeHTML(error.message)}</p>`); }
+  }
+
+  async function markComplete() {
+    if (!confirm("Mark this Journey complete in your personal record? This does not claim that a government application was approved.")) return;
+    try {
+      const payload = {
+        kind: "STATUS_UPDATE", channel: "OTHER", title: "Journey marked complete",
+        raw_text: "I completed this journey.", reported_status: "RESOLVED",
+        suggested_next_action: "NONE", occurred_on: today(),
+        request_id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+      };
+      await api(`/journeys/${state.current.id}/breadcrumbs/`, { method: "POST", body: JSON.stringify(payload) });
+      await refreshCurrent();
+    } catch (error) { toast(error.message); }
+  }
+
+  async function completeGuideStep() {
+    const step = state.activeGuideStep;
+    if (!step || step.status === "COMPLETED") return;
+    const button = $("complete-guide-step");
+    button.disabled = true;
+    try {
+      await api(`/guide-steps/${step.id}/complete/`, { method: "POST", body: "{}" });
+      closeModal("guide-step-modal");
+      await refreshCurrent(`Step ${step.position} was marked complete and added to your record.`);
+    } catch (error) { toast(error.message); }
+    finally { button.disabled = false; }
+  }
+
+  async function editJourney() {
+    const title = prompt("Journey title", state.current.title);
+    if (title === null) return;
+    const goal = prompt("What are you trying to accomplish?", state.current.goal);
+    if (goal === null) return;
+    try {
+      await api(`/journeys/${state.current.id}/`, { method: "PATCH", body: JSON.stringify({ title, goal }) });
+      await refreshCurrent("Your goal was updated.");
+    } catch (error) { toast(error.message); }
+  }
+
+  async function createJourney() {
+    const button = $("confirm-create");
+    button.disabled = true;
+    try {
+      const title = $("goal-input").value.trim();
+      const situation = $("situation-input").value.trim();
+      const description = `Goal: ${title}\nSituation: ${situation || "No additional details provided."}`;
+      const goal = situation ? `${title}. ${situation}` : title;
+      const body = await api("/journeys/", { method: "POST", body: JSON.stringify({ goal, description }) });
+      closeModal("goal-confirm-modal");
+      await loadJourneys();
+      await selectJourney(body.id, true);
+      if (state.authMode === "guest") toast("Sign in with Google from the profile button to save your Journey.");
+    } catch (error) { toast(error.message); }
+    finally { button.disabled = false; }
+  }
+
+  function populateOrganizationSelect() {
+    $("detail-org").innerHTML = '<option value="">Not specified</option>' + state.organizations.map((org) => `<option value="${escapeHTML(org.name)}">${escapeHTML(org.short_name || org.name)}</option>`).join("");
+  }
+
+  async function showAccount() {
+    if (state.authMode === "account") {
+      showInfo("Your Journey is saved", "Signed in", "<p>You are signed in through Auth0. Django continues to control Journey ownership and access.</p>");
+      return;
+    }
+    openModal("account-modal");
+    $("auth-login").disabled = !state.auth0;
+    if (!state.auth0) $("auth-login").textContent = "Configure Auth0 to enable sign-in";
+  }
+
+  function bindEvents() {
+    $("menu-button").addEventListener("click", openSidebar);
+    $("close-sidebar").addEventListener("click", closeSidebar);
+    $("sidebar-scrim").addEventListener("click", closeSidebar);
+    $("home-button").addEventListener("click", () => state.current ? showScreen("journey") : startNewGoal());
+    $("crumb-home").addEventListener("click", openSidebar);
+    $("sidebar-new").addEventListener("click", startNewGoal);
+    $("completion-new").addEventListener("click", startNewGoal);
+    $("review-completed").addEventListener("click", () => showScreen("journey"));
+    $("profile-button").addEventListener("click", showAccount);
+    $("goal-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const goal = $("goal-input").value.trim();
+      if (!goal) return;
+      $("confirm-goal-text").textContent = goal;
+      $("confirm-situation-text").textContent = $("situation-input").value.trim() || "No additional situation details yet.";
+      openModal("goal-confirm-modal");
+    });
+    $("confirm-create").addEventListener("click", createJourney);
+    $("add-event").addEventListener("click", () => openRecordModal());
+    $("interpret-event").addEventListener("click", interpretEvent);
+    $("save-note").addEventListener("click", savePlainNote);
+    $("back-to-event").addEventListener("click", () => { $("record-review-stage").hidden = true; $("record-input-stage").hidden = false; });
+    $("confirm-event").addEventListener("click", confirmDraft);
+    $("edit-draft").addEventListener("click", () => { fillDetails(state.draft); $("record-review-stage").hidden = true; $("record-edit-stage").hidden = false; });
+    $("record-edit-stage").addEventListener("submit", saveDetails);
+    $("cancel-details").addEventListener("click", () => closeModal("record-modal"));
+    $("delete-event").addEventListener("click", deleteEvent);
+    $("stuck-button").addEventListener("click", showHelp);
+    $("help-record").addEventListener("click", () => { closeModal("help-modal"); openRecordModal(); });
+    $("organization-button").addEventListener("click", showOrganization);
+    $("handoff-button").addEventListener("click", showHandoff);
+    $("complete-button").addEventListener("click", markComplete);
+    $("record-guide-step").addEventListener("click", () => { const step = state.activeGuideStep; closeModal("guide-step-modal"); openRecordModal(step); });
+    $("complete-guide-step").addEventListener("click", completeGuideStep);
+    $("edit-journey").addEventListener("click", editJourney);
+    $("auth-login").addEventListener("click", async () => { if (state.auth0) await state.auth0.loginWithRedirect({ authorizationParams: { screen_hint: "login" } }); });
+    document.querySelectorAll("[data-close]").forEach((el) => el.addEventListener("click", () => closeModal(el.dataset.close)));
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      const open = document.querySelector(".modal-shell:not([hidden])");
+      if (open) closeModal(open.id); else closeSidebar();
+    });
+  }
+
+  async function start() {
+    bindEvents();
+    try {
+      await setupAuth();
+      const orgBody = await api("/organizations/");
+      state.organizations = orgBody.results || [];
+      populateOrganizationSelect();
+      const journeys = await loadJourneys();
+      if (journeys.length) await selectJourney(journeys[0].id);
+      else startNewGoal();
+    } catch (error) {
+      toast(error.message || "The app could not load. Is the server running?");
+      startNewGoal();
     }
   }
 
-  // The escape hatch, on both steps: nothing the citizen typed is ever lost.
-  $("add-note").addEventListener("click", (event) =>
-    saveNote($("add-text").value.trim(), event.target)
-  );
-  $("review-note").addEventListener("click", (event) =>
-    saveNote(lastRawText, event.target)
-  );
-
-  $("btn-stuck").addEventListener("click", async (event) => {
-    event.target.disabled = true;
-    try {
-      const body = await api("/journeys/" + currentId + "/stuck/");
-      $("stuck-summary").textContent = body.summary || "";
-      $("stuck-unresolved").textContent =
-        body.unresolved_issue || "Nothing appears unresolved.";
-      $("stuck-instruction").textContent =
-        body.latest_instruction || "None recorded.";
-
-      const generated = $("stuck-generated");
-      generated.hidden = !(body.ai && body.ai.summary_is_generated);
-      generated.textContent =
-        "This wording was generated from your records. The dates, " +
-        "organizations and instructions come from what you recorded.";
-
-      const org = $("stuck-org");
-      org.innerHTML = "";
-      const heading = document.createElement("h2");
-      heading.textContent = "Who is responsible";
-      org.appendChild(heading);
-      const p = document.createElement("p");
-      if (body.responsible_organization) {
-        p.textContent = body.responsible_organization.name;
-        if (body.organization_message) {
-          const note = document.createElement("p");
-          note.className = "muted";
-          note.textContent = body.organization_message;
-          org.appendChild(p);
-          org.appendChild(note);
-        } else {
-          org.appendChild(p);
-        }
-      } else {
-        p.textContent = body.organization_message;
-        org.appendChild(p);
-      }
-
-      const sources = $("stuck-sources");
-      sources.innerHTML = "";
-      (body.official_sources || []).forEach((source) => {
-        const li = document.createElement("li");
-        const a = document.createElement("a");
-        a.href = source.url;
-        a.textContent = source.title;
-        a.target = "_blank";
-        a.rel = "noopener noreferrer";
-        li.appendChild(a);
-        const tag = document.createElement("span");
-        tag.className = "tag";
-        tag.textContent = "Official";
-        li.appendChild(tag);
-        const checked = document.createElement("span");
-        checked.className = "muted";
-        checked.textContent = " Link checked " + formatDate(source.verified_at);
-        li.appendChild(checked);
-        sources.appendChild(li);
-      });
-
-      show("stuck-panel");
-    } finally {
-      event.target.disabled = false;
-    }
-  });
-
-  $("btn-who").addEventListener("click", async (event) => {
-    event.target.disabled = true;
-    try {
-      const body = await api(
-        "/journeys/" + currentId + "/responsible-organization/"
-      );
-      const target = $("who-body");
-      target.innerHTML = "";
-
-      if (body.responsible_organization) {
-        const name = document.createElement("p");
-        name.style.fontSize = "1.15rem";
-        name.innerHTML = "<strong></strong>";
-        name.querySelector("strong").textContent =
-          body.responsible_organization.name;
-        target.appendChild(name);
-
-        const tag = document.createElement("p");
-        tag.innerHTML = '<span class="tag">From the curated directory</span>';
-        target.appendChild(tag);
-
-        // The honest answer: sometimes nobody needs contacting (§21).
-        if (body.message) {
-          const message = document.createElement("p");
-          message.textContent = body.message;
-          target.appendChild(message);
-        }
-
-        const link = document.createElement("p");
-        const a = document.createElement("a");
-        a.href = body.responsible_organization.official_url;
-        a.textContent = "Open the official website";
-        a.target = "_blank";
-        a.rel = "noopener noreferrer";
-        link.appendChild(a);
-        target.appendChild(link);
-      } else {
-        const message = document.createElement("p");
-        message.textContent = body.message;
-        target.appendChild(message);
-      }
-      show("who-panel");
-    } finally {
-      event.target.disabled = false;
-    }
-  });
-
-  $("btn-handoff").addEventListener("click", async (event) => {
-    event.target.disabled = true;
-    try {
-      const body = await api("/journeys/" + currentId + "/handoff/", {
-        method: "POST",
-        body: JSON.stringify({}),
-      });
-      $("handoff-text").textContent = body.summary || "";
-      const generated = $("handoff-generated");
-      generated.hidden = !(body.ai && body.ai.summary_is_generated);
-      generated.textContent =
-        "Wording generated from your records. Every date and instruction comes " +
-        "from what you recorded.";
-      $("handoff-copied").hidden = true;
-      show("handoff-panel");
-    } finally {
-      event.target.disabled = false;
-    }
-  });
-
-  $("handoff-copy").addEventListener("click", async () => {
-    const text = $("handoff-text").textContent;
-    try {
-      await navigator.clipboard.writeText(text);
-      $("handoff-copied").hidden = false;
-    } catch (err) {
-      // Clipboard access can be blocked; select the text so it stays copyable.
-      const range = document.createRange();
-      range.selectNodeContents($("handoff-text"));
-      const selection = window.getSelection();
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
-  });
-
-  // --- boot ---------------------------------------------------------------
-
-  (async function start() {
-    try {
-      await loadOrganizations();
-      await loadJourneys();
-    } catch (err) {
-      $("journey-title").textContent = "Could not load";
-      $("journey-goal").textContent =
-        "The API did not respond. Is the server running?";
-    }
-  })();
+  start();
 })();

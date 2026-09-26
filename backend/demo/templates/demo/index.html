@@ -1,435 +1,270 @@
-{% load static %}<!DOCTYPE html>
+{% load static %}<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Civic Breadcrumbs</title>
-<!--
-  Fallback demo interface.
-
-  Deliberately dependency-free: no build step, no CDN, no framework. It exists so
-  the complete flow is demonstrable from a clean checkout, and so a broken asset
-  pipeline can never be the reason a judge does not see the product.
-
-  Accessibility is treated as a requirement, not a polish pass (README §26):
-  provenance is conveyed by text as well as colour, the state panel is an
-  aria-live region so screen-reader users hear it change, every control is a real
-  button reachable by keyboard, focus is always visible, and the type scale
-  starts at 17px.
--->
-<style>
-  :root {
-    --bg: #f6f7f9;
-    --surface: #ffffff;
-    --ink: #14181f;
-    --ink-soft: #4a5260;
-    --line: #d6dae1;
-    --accent: #0b4f7a;
-    --accent-ink: #ffffff;
-    --waiting: #7a4a05;
-    --waiting-bg: #fdf1dc;
-    --action: #8a2016;
-    --action-bg: #fdeceb;
-    --done: #14532d;
-    --done-bg: #e6f4ea;
-    --focus: #b45309;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #14181f;
-      --surface: #1c222b;
-      --ink: #f2f4f7;
-      --ink-soft: #b3bcc9;
-      --line: #333c49;
-      --accent: #7cc0ec;
-      --accent-ink: #0b1a24;
-      --waiting: #fcd9a0;
-      --waiting-bg: #3a2c11;
-      --action: #f7b3ab;
-      --action-bg: #3d1a16;
-      --done: #a7e0bb;
-      --done-bg: #12321f;
-      --focus: #fbbf24;
-    }
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    padding: 0;
-    background: var(--bg);
-    color: var(--ink);
-    font: 17px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  }
-  :focus-visible {
-    outline: 3px solid var(--focus);
-    outline-offset: 2px;
-  }
-  .skip {
-    position: absolute; left: -9999px;
-    background: var(--surface); color: var(--ink);
-    padding: 12px 16px; z-index: 10; border-radius: 6px;
-  }
-  .skip:focus { left: 16px; top: 16px; }
-  header.top {
-    background: var(--surface);
-    border-bottom: 1px solid var(--line);
-    padding: 18px 20px;
-  }
-  .top-inner { max-width: 1040px; margin: 0 auto; }
-  h1 { font-size: 1.4rem; margin: 0; letter-spacing: -0.01em; }
-  .tagline { color: var(--ink-soft); margin: 4px 0 0; font-size: 0.95rem; }
-  main {
-    max-width: 1040px; margin: 0 auto; padding: 20px;
-    display: grid; grid-template-columns: 260px 1fr; gap: 20px;
-  }
-  @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 18px;
-    margin-bottom: 18px;
-  }
-  h2 { font-size: 1.05rem; margin: 0 0 12px; text-transform: uppercase;
-       letter-spacing: 0.05em; color: var(--ink-soft); }
-  h3 { font-size: 1.25rem; margin: 0 0 6px; }
-  .goal { color: var(--ink-soft); margin: 0 0 14px; }
-  ul { list-style: none; margin: 0; padding: 0; }
-  .journey-btn {
-    display: block; width: 100%; text-align: left; cursor: pointer;
-    background: transparent; border: 1px solid transparent; border-radius: 8px;
-    padding: 10px 12px; margin-bottom: 4px; color: var(--ink);
-    font: inherit;
-  }
-  .journey-btn:hover { border-color: var(--line); }
-  .journey-btn[aria-current="true"] { background: var(--accent); color: var(--accent-ink); }
-  .journey-btn small { display: block; opacity: 0.85; font-size: 0.85rem; }
-  .pill {
-    display: inline-block; font-size: 0.8rem; font-weight: 700;
-    padding: 3px 10px; border-radius: 999px; border: 1px solid currentColor;
-  }
-  .pill.WAITING { color: var(--waiting); background: var(--waiting-bg); }
-  .pill.ACTION_REQUIRED { color: var(--action); background: var(--action-bg); }
-  .pill.COMPLETED { color: var(--done); background: var(--done-bg); }
-  .pill.ACTIVE { color: var(--ink-soft); background: var(--bg); }
-  .here {
-    border-left: 5px solid var(--accent);
-    background: var(--surface);
-  }
-  .here .label { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.1em;
-                 color: var(--accent); text-transform: uppercase; }
-  .here p.state { font-size: 1.15rem; margin: 6px 0 14px; }
-  .next { border-top: 1px solid var(--line); padding-top: 12px; }
-  .next .label { color: var(--ink-soft); }
-  .provenance {
-    font-size: 0.82rem; color: var(--ink-soft); margin-top: 10px;
-  }
-  .actions { display: flex; flex-wrap: wrap; gap: 10px; }
-  button.act {
-    font: inherit; font-weight: 600; cursor: pointer;
-    padding: 12px 16px; border-radius: 8px;
-    border: 1px solid var(--accent); background: var(--surface); color: var(--accent);
-    min-height: 44px;
-  }
-  button.act.primary { background: var(--accent); color: var(--accent-ink); }
-  button.act:hover { filter: brightness(0.96); }
-  button.act:disabled { opacity: 0.5; cursor: not-allowed; }
-  ol.timeline { list-style: none; margin: 0; padding: 0; }
-  ol.timeline li {
-    border-left: 2px solid var(--line); padding: 0 0 18px 18px;
-    position: relative; margin-left: 6px;
-  }
-  ol.timeline li::before {
-    content: ""; position: absolute; left: -7px; top: 4px;
-    width: 12px; height: 12px; border-radius: 50%;
-    background: var(--accent); border: 2px solid var(--surface);
-  }
-  ol.timeline li:last-child { border-left-color: transparent; padding-bottom: 0; }
-  .when { font-size: 0.85rem; color: var(--ink-soft); }
-  .what { font-weight: 600; }
-  .tag {
-    display: inline-block; font-size: 0.72rem; font-weight: 700;
-    letter-spacing: 0.04em; padding: 2px 7px; border-radius: 4px;
-    border: 1px solid var(--line); color: var(--ink-soft);
-    margin: 4px 6px 0 0; text-transform: uppercase;
-  }
-  .said { font-style: italic; color: var(--ink-soft); margin: 6px 0 0; }
-  textarea {
-    width: 100%; font: inherit; padding: 12px; border-radius: 8px;
-    border: 1px solid var(--line); background: var(--bg); color: var(--ink);
-    min-height: 110px; resize: vertical;
-  }
-  label { display: block; font-weight: 600; margin: 12px 0 4px; }
-  select, input[type=text], input[type=date] {
-    font: inherit; padding: 10px; border-radius: 8px; width: 100%;
-    border: 1px solid var(--line); background: var(--bg); color: var(--ink);
-  }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  @media (max-width: 600px) { .grid2 { grid-template-columns: 1fr; } }
-  pre.summary {
-    white-space: pre-wrap; font: inherit; background: var(--bg);
-    border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin: 0;
-  }
-  .notice {
-    border: 1px solid var(--line); border-left: 4px solid var(--focus);
-    background: var(--surface); border-radius: 6px; padding: 10px 14px;
-    margin-bottom: 12px; font-size: 0.92rem;
-  }
-  .notice.stale { border-left-color: var(--waiting); }
-  .paraphrase {
-    font-size: 1.1rem; font-weight: 600; line-height: 1.45;
-    margin: 0 0 14px; padding: 0;
-  }
-  .link-btn {
-    font: inherit; background: none; border: none; padding: 0;
-    color: var(--accent); text-decoration: underline; cursor: pointer;
-    min-height: 44px;
-  }
-  .sources li { margin-bottom: 10px; }
-  .sources a { color: var(--accent); }
-  [hidden] { display: none !important; }
-  .muted { color: var(--ink-soft); font-size: 0.9rem; }
-  .row-actions { margin-top: 6px; display: flex; gap: 14px; }
-  .row-actions button {
-    font: inherit; font-size: 0.82rem; background: none; border: none;
-    padding: 0; color: var(--ink-soft); text-decoration: underline;
-    cursor: pointer; min-height: 28px;
-  }
-  .row-actions button:hover { color: var(--accent); }
-  footer { max-width: 1040px; margin: 0 auto; padding: 8px 20px 40px; }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Civic Breadcrumbs | Your guide</title>
+  <link rel="stylesheet" href="{% static 'demo/app.css' %}">
 </head>
 <body>
-<a class="skip" href="#content">Skip to main content</a>
+  <a class="skip-link" href="#main">Skip to main content</a>
 
-<header class="top">
-  <div class="top-inner">
-    <h1>Civic Breadcrumbs</h1>
-    <p class="tagline">Government shouldn&rsquo;t make you start over.</p>
-  </div>
-</header>
-
-<main>
-  <nav aria-label="Your journeys">
-    <div class="card">
-      <h2 id="journeys-heading">Your journeys</h2>
-      <ul id="journey-list" aria-labelledby="journeys-heading"></ul>
-      <button class="act" id="new-journey-btn" style="width:100%;margin-top:10px">
-        + New journey
+  <header class="app-header">
+    <button class="icon-button menu-button" id="menu-button" aria-label="Open journeys menu" aria-expanded="false" aria-controls="sidebar">
+      <span></span><span></span><span></span>
+    </button>
+    <button class="brand" id="home-button" type="button">Your guide</button>
+    <div class="header-actions">
+      <span class="demo-badge">Concept demo</span>
+      <button class="profile-button" id="profile-button" aria-label="Account and sign in">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0H5Z"/></svg>
       </button>
     </div>
-  </nav>
+  </header>
 
-  <div id="content">
-    <!-- New journey -->
-    <section class="card" id="new-journey-panel" hidden aria-labelledby="nj-h">
-      <h2 id="nj-h">What are you trying to get done?</h2>
-      <label for="nj-text">Describe it in your own words</label>
-      <textarea id="nj-text" placeholder="I applied to extend my study permit and I am not sure what I need to do next."></textarea>
-      <div class="actions" style="margin-top:12px">
-        <button class="act primary" id="nj-create">Create journey</button>
-        <button class="act" id="nj-cancel">Cancel</button>
+  <div class="scrim" id="sidebar-scrim" hidden></div>
+  <aside class="sidebar" id="sidebar" aria-label="Your journeys" aria-hidden="true" inert>
+    <div class="sidebar-head">
+      <div>
+        <p class="eyebrow">Civic Breadcrumbs</p>
+        <h2>Your journeys</h2>
+      </div>
+      <button class="icon-button close-icon" id="close-sidebar" aria-label="Close menu">×</button>
+    </div>
+    <button class="button primary full" id="sidebar-new">Start a new goal <span>→</span></button>
+    <ul class="sidebar-list" id="journey-list"></ul>
+    <div class="sidebar-note">
+      <strong>Your record, not a government file.</strong>
+      <span>Check official services for live application status.</span>
+    </div>
+  </aside>
+
+  <main id="main">
+    <section class="screen create-screen" id="create-screen" aria-labelledby="create-title">
+      <div class="create-wrap">
+        <p class="eyebrow">Start your journey</p>
+        <h1 id="create-title">What would you like to do?</h1>
+        <p class="lede">Tell us your goal. We’ll help you keep track of it, step by step.</p>
+
+        <form class="goal-form" id="goal-form">
+          <label for="goal-input">Your goal</label>
+          <input id="goal-input" maxlength="200" placeholder="For example, renew my study permit" required>
+
+          <label for="situation-input">Describe your situation</label>
+          <div class="textarea-wrap">
+            <textarea id="situation-input" maxlength="1000" placeholder="What have you already done, and where do you need help?"></textarea>
+            <span>Up to 1,000 characters</span>
+          </div>
+
+          <div class="create-action">
+            <button class="round-arrow" type="submit" aria-label="Review and create guide">→</button>
+            <span>Create guide</span>
+          </div>
+          <p class="privacy-note">Include relevant details. Avoid passport numbers, SINs, or other personal identification numbers.</p>
+        </form>
       </div>
     </section>
 
-    <!-- Journey header + current state -->
-    <section class="card here" id="state-panel" aria-labelledby="journey-title">
-      <h3 id="journey-title">Loading&hellip;</h3>
-      <p class="goal" id="journey-goal"></p>
-      <p><span class="pill ACTIVE" id="status-pill">&nbsp;</span></p>
+    <section class="screen journey-screen" id="journey-screen" hidden>
+      <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <button id="crumb-home">Home</button><span>/</span><strong>Your journey</strong>
+      </nav>
 
-      <p class="notice" id="action-feedback" hidden role="status" aria-live="polite"></p>
-
-      <div aria-live="polite" id="state-live">
-        <p class="notice stale" id="staleness-banner" hidden></p>
-        <p class="label">You are here</p>
-        <p class="state" id="current-state"></p>
-        <div class="next">
-          <p class="label">Next recorded action</p>
-          <p id="next-action" style="margin:4px 0 0"></p>
+      <section class="goal-card">
+        <div>
+          <p class="eyebrow">Your goal</p>
+          <h1 id="journey-title">Loading…</h1>
+          <p id="journey-goal"></p>
         </div>
-        <p class="provenance" id="provenance"></p>
+        <button class="button secondary compact" id="edit-journey">Edit goal</button>
+      </section>
+
+      <section class="guide-card" aria-labelledby="guide-heading">
+        <div class="guide-heading-row">
+          <div>
+            <p class="eyebrow">Suggested guide</p>
+            <h2 id="guide-heading">Your steps</h2>
+            <p id="guide-summary"></p>
+          </div>
+          <div class="guide-progress-copy"><strong id="guide-progress-label">0 of 0 steps complete</strong><div class="progress-track"><span id="guide-progress-bar"></span></div></div>
+        </div>
+        <div class="notice guide-clarification" id="guide-clarification" hidden></div>
+        <p class="guidance-disclaimer">These are organizational suggestions, not proof that a step happened or a substitute for current official instructions.</p>
+        <ol class="guide-step-list" id="guide-step-list"></ol>
+      </section>
+
+      <section class="state-card" aria-live="polite">
+        <div class="state-topline">
+          <span class="status-pill" id="status-pill">Active</span>
+          <span class="muted" id="record-count"></span>
+        </div>
+        <p class="eyebrow">You are here</p>
+        <h2 id="current-state"></h2>
+        <div class="next-action">
+          <span>Next recorded action</span>
+          <strong id="next-action"></strong>
+        </div>
+        <p class="source-line" id="state-source"></p>
+      </section>
+
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Your audit trail</p>
+          <h2>What you recorded</h2>
+          <p>Open an event to review or correct what you recorded.</p>
+        </div>
+        <button class="button primary" id="add-event">Record what happened <span>→</span></button>
       </div>
 
-      <div class="actions" style="margin-top:16px">
-        <button class="act primary" id="btn-what">+ What happened?</button>
-        <button class="act" id="btn-stuck">I&rsquo;m stuck</button>
-        <button class="act" id="btn-who">Who handles this?</button>
-        <button class="act" id="btn-handoff">Hand me off</button>
+      <ol class="timeline-list" id="timeline-list"></ol>
+      <div class="empty-state" id="empty-timeline" hidden>
+        <div class="step-orb">1</div>
+        <div><strong>Record your first step</strong><p>Add a call, form, email, visit, document, or personal note.</p></div>
       </div>
+
+      <div class="journey-actions">
+        <button class="button secondary" id="stuck-button">?<span>I’m stuck</span></button>
+        <button class="button secondary" id="organization-button">Who handles this?</button>
+        <button class="button secondary" id="handoff-button">Prepare a handoff</button>
+        <button class="button primary" id="complete-button">✓ Mark journey complete</button>
+      </div>
+      <p class="action-feedback" id="action-feedback" hidden role="status"></p>
     </section>
 
-    <!-- Add breadcrumb: step 1, describe -->
-    <section class="card" id="add-panel" hidden aria-labelledby="add-h">
-      <h2 id="add-h">What happened?</h2>
-      <label for="add-text">Tell it the way you would tell a friend</label>
-      <textarea id="add-text" placeholder="I called IRCC today. They said my application is still processing and told me not to submit another one."></textarea>
-      <div class="actions" style="margin-top:12px">
-        <button class="act primary" id="add-interpret">Continue</button>
-        <button class="act" id="add-note">Just save my note</button>
-        <button class="act" id="add-cancel">Cancel</button>
-      </div>
-      <p class="muted" style="margin-top:10px">
-        Your own words are always kept, exactly as you wrote them.
-      </p>
-    </section>
-
-    <!-- Add breadcrumb: step 2, confirm -->
-    <!--
-      One tap in the common case: the AI's plain-English understanding is the
-      headline, with one big primary action. Full editing is one click away
-      via "Edit details," not the default view -- this is the resolution to
-      "don't make it feel like filling another form": the two-call
-      interpret-then-confirm API contract (CLAUDE.md §24) is unchanged, only
-      how much of it the citizen has to look at by default.
-    -->
-    <section class="card" id="review-panel" hidden aria-labelledby="review-h">
-      <h2 id="review-h">Confirm what happened</h2>
-      <div class="notice" id="review-notice" hidden></div>
-
-      <div id="review-confirm-view">
-        <p class="paraphrase" id="review-paraphrase"></p>
-        <p class="muted">You wrote:</p>
-        <p class="said" id="review-raw"></p>
-        <div class="actions" style="margin-top:16px">
-          <button class="act primary" id="review-yes">Yes, that's right</button>
-          <button class="act" id="review-edit-details">Edit details</button>
-          <button class="act" id="review-cancel">Cancel</button>
-        </div>
-      </div>
-
-      <div id="review-form-view" hidden>
-        <p class="muted">You wrote:</p>
-        <p class="said" id="review-raw-form"></p>
-
-        <div class="grid2">
-          <div>
-            <label for="f-kind">What kind of thing was it?</label>
-            <select id="f-kind">
-              <option value="INTERACTION">Contact with an organization</option>
-              <option value="ACTION">Something I did</option>
-              <option value="STATUS_UPDATE">A status update I received</option>
-              <option value="DOCUMENT">A document</option>
-              <option value="SOURCE">Something official I read</option>
-              <option value="NOTE">A note</option>
-            </select>
-          </div>
-          <div>
-            <label for="f-channel">How did it happen?</label>
-            <select id="f-channel">
-              <option value="PHONE">Phone call</option>
-              <option value="EMAIL">Email</option>
-              <option value="IN_PERSON">In person</option>
-              <option value="WEB">Website</option>
-              <option value="LETTER">Letter</option>
-              <option value="UPLOAD">Upload</option>
-              <option value="OTHER">Other</option>
-              <option value="UNKNOWN">Not sure</option>
-            </select>
-          </div>
-          <div>
-            <label for="f-org">Which organization?</label>
-            <select id="f-org"></select>
-          </div>
-          <div>
-            <label for="f-date">When?</label>
-            <input type="date" id="f-date">
-          </div>
-          <div>
-            <label for="f-status">What did they say the status was?</label>
-            <select id="f-status">
-              <option value="UNKNOWN">They did not say</option>
-              <option value="SUBMITTED">Submitted</option>
-              <option value="RECEIVED">Received</option>
-              <option value="PROCESSING">Still processing</option>
-              <option value="UNDER_REVIEW">Under review</option>
-              <option value="INCOMPLETE">Incomplete</option>
-              <option value="ADDITIONAL_INFO_REQUIRED">They need more from me</option>
-              <option value="APPROVED">Approved</option>
-              <option value="REFUSED">Refused</option>
-              <option value="RESOLVED">Resolved</option>
-            </select>
-          </div>
-          <div>
-            <label for="f-next">What should happen next?</label>
-            <select id="f-next">
-              <option value="NONE">Nothing recorded</option>
-              <option value="WAIT">Wait</option>
-              <option value="PROVIDE_DOCUMENT">Provide a document</option>
-              <option value="UPLOAD">Upload something</option>
-              <option value="SUBMIT">Submit something</option>
-              <option value="CALL">Call them</option>
-              <option value="VISIT">Visit in person</option>
-              <option value="CONTACT_ORGANIZATION">Contact them</option>
-            </select>
-          </div>
-        </div>
-
-        <label for="f-title">Short label for your timeline</label>
-        <input type="text" id="f-title">
-
-        <label for="f-instruction">What did they tell you to do?</label>
-        <input type="text" id="f-instruction">
-
-        <div class="actions" style="margin-top:16px">
-          <button class="act primary" id="review-confirm">Save to my journey</button>
-          <button class="act" id="review-note">Save as a plain note instead</button>
-          <button class="act" id="review-form-cancel">Cancel</button>
+    <section class="screen completion-screen" id="completion-screen" hidden>
+      <div class="completion-wrap">
+        <div class="completion-check">✓</div>
+        <p class="eyebrow" id="completion-label">Journey complete</p>
+        <h1>You’ve completed your guide</h1>
+        <p class="lede">Your Journey is marked complete in your personal record.</p>
+        <div class="completion-list" id="completion-list"></div>
+        <p class="completion-disclaimer">This records your progress only. Check the official service for your application status.</p>
+        <div class="center-actions">
+          <button class="button primary" id="review-completed">Review my journey</button>
+          <button class="button secondary" id="completion-new">Start a new goal</button>
         </div>
       </div>
     </section>
+  </main>
 
-    <!-- I'm stuck -->
-    <section class="card" id="stuck-panel" hidden aria-labelledby="stuck-h">
-      <h2 id="stuck-h">Where you left off</h2>
-      <div class="notice" id="stuck-generated" hidden></div>
-      <p id="stuck-summary" style="font-size:1.08rem"></p>
-      <p><strong>Still unresolved:</strong> <span id="stuck-unresolved"></span></p>
-      <p><strong>Last instruction you recorded:</strong> <span id="stuck-instruction"></span></p>
-      <div id="stuck-org"></div>
-      <h2 style="margin-top:18px">Official sources</h2>
-      <ul class="sources" id="stuck-sources"></ul>
-      <div class="actions" style="margin-top:12px">
-        <button class="act" id="stuck-close">Close</button>
+  <footer>Illustrative process <span>•</span> Independent guidance</footer>
+
+  <div class="modal-shell" id="goal-confirm-modal" hidden>
+    <div class="modal-backdrop" data-close="goal-confirm-modal"></div>
+    <section class="modal wide" role="dialog" aria-modal="true" aria-labelledby="confirm-goal-title">
+      <button class="modal-close" data-close="goal-confirm-modal" aria-label="Close">×</button>
+      <p class="eyebrow">Confirm your goal</p>
+      <h2 id="confirm-goal-title">Does this describe what you want to track?</h2>
+      <p class="modal-lede">Review your wording before we create the Journey.</p>
+      <div class="choice selected">
+        <span class="radio-dot"></span>
+        <div><strong id="confirm-goal-text"></strong><p id="confirm-situation-text"></p></div>
       </div>
-    </section>
-
-    <!-- Who handles this -->
-    <section class="card" id="who-panel" hidden aria-labelledby="who-h">
-      <h2 id="who-h">Who is responsible for your next step?</h2>
-      <div id="who-body"></div>
-      <div class="actions" style="margin-top:12px">
-        <button class="act" id="who-close">Close</button>
+      <div class="modal-actions split">
+        <button class="button secondary" data-close="goal-confirm-modal">Back</button>
+        <button class="button primary" id="confirm-create">Build my guide <span>→</span></button>
       </div>
-    </section>
-
-    <!-- Handoff -->
-    <section class="card" id="handoff-panel" hidden aria-labelledby="handoff-h">
-      <h2 id="handoff-h">Hand this to the next person</h2>
-      <div class="notice" id="handoff-generated" hidden></div>
-      <pre class="summary" id="handoff-text"></pre>
-      <div class="actions" style="margin-top:12px">
-        <button class="act primary" id="handoff-copy">Copy summary</button>
-        <button class="act" id="handoff-close">Close</button>
-      </div>
-      <p class="muted" id="handoff-copied" hidden role="status">Copied to your clipboard.</p>
-    </section>
-
-    <!-- Timeline -->
-    <section class="card" aria-labelledby="timeline-h">
-      <h2 id="timeline-h">Your timeline</h2>
-      <ol class="timeline" id="timeline"></ol>
     </section>
   </div>
-</main>
 
-<footer>
-  <p class="muted">
-    A citizen-owned record, not an official government file. Demo data is
-    synthetic. <a href="/api/docs/">API documentation</a>
-  </p>
-</footer>
+  <div class="modal-shell" id="record-modal" hidden>
+    <div class="modal-backdrop" data-close="record-modal"></div>
+    <section class="modal wide" role="dialog" aria-modal="true" aria-labelledby="record-title">
+      <button class="modal-close" data-close="record-modal" aria-label="Close">×</button>
+      <div id="record-input-stage">
+        <div class="modal-title-row"><span class="question-orb">+</span><div><p class="eyebrow">Add to your Journey</p><h2 id="record-title">What happened?</h2></div></div>
+        <p class="context-chip" id="record-context"></p>
+        <label for="event-text">Describe it in your own words</label>
+        <textarea id="event-text" maxlength="4000" placeholder="I called IRCC today. They said it is still processing and told me not to submit another application."></textarea>
+        <p class="field-help">Your original words are always kept exactly as you wrote them.</p>
+        <div class="modal-actions split">
+          <button class="button secondary" id="save-note">Save as a plain note</button>
+          <button class="button primary" id="interpret-event">Review what I said <span>→</span></button>
+        </div>
+      </div>
 
-<script src="{% static 'demo/app.js' %}"></script>
+      <div id="record-review-stage" hidden>
+        <p class="eyebrow">Confirm what happened</p>
+        <h2>Is this understanding right?</h2>
+        <p class="modal-lede">Nothing is added to your record until you confirm it.</p>
+        <div class="choice selected"><span class="radio-dot"></span><div><strong id="draft-paraphrase"></strong><p id="draft-original"></p></div></div>
+        <div class="draft-tags" id="draft-tags"></div>
+        <div class="notice" id="draft-notice" hidden></div>
+        <div class="modal-actions split">
+          <button class="button secondary" id="back-to-event">Back</button>
+          <div class="button-row"><button class="button secondary" id="edit-draft">Edit details</button><button class="button primary" id="confirm-event">Add to Journey <span>→</span></button></div>
+        </div>
+      </div>
+
+      <form id="record-edit-stage" hidden>
+        <p class="eyebrow">Review details</p>
+        <h2 id="details-heading">Edit the event</h2>
+        <div class="form-grid">
+          <div><label for="detail-title">Timeline label</label><input id="detail-title" maxlength="300" required></div>
+          <div><label for="detail-kind">Type</label><select id="detail-kind"><option value="INTERACTION">Interaction</option><option value="ACTION">Action</option><option value="STATUS_UPDATE">Status update</option><option value="DOCUMENT">Document</option><option value="SOURCE">Official source</option><option value="NOTE">Note</option></select></div>
+          <div><label for="detail-channel">Channel</label><select id="detail-channel"><option value="UNKNOWN">Not specified</option><option value="PHONE">Phone</option><option value="EMAIL">Email</option><option value="IN_PERSON">In person</option><option value="WEB">Website</option><option value="LETTER">Letter</option><option value="UPLOAD">Upload</option><option value="OTHER">Other</option></select></div>
+          <div><label for="detail-org">Organization</label><select id="detail-org"></select></div>
+          <div><label for="detail-status">Reported status</label><select id="detail-status"><option value="UNKNOWN">Not specified</option><option value="SUBMITTED">Submitted</option><option value="RECEIVED">Received</option><option value="PROCESSING">Processing</option><option value="UNDER_REVIEW">Under review</option><option value="INCOMPLETE">Incomplete</option><option value="ADDITIONAL_INFO_REQUIRED">More information required</option><option value="APPROVED">Approved</option><option value="REFUSED">Refused</option><option value="RESOLVED">Resolved</option></select></div>
+          <div><label for="detail-date">Date</label><input type="date" id="detail-date"></div>
+        </div>
+        <label for="detail-instruction">Instruction you received</label><input id="detail-instruction" maxlength="500">
+        <div class="modal-actions split"><button class="button danger" type="button" id="delete-event" hidden>Delete event</button><div class="button-row"><button class="button secondary" type="button" id="cancel-details">Cancel</button><button class="button primary" type="submit">Save details</button></div></div>
+      </form>
+    </section>
+  </div>
+
+  <div class="modal-shell" id="guide-step-modal" hidden>
+    <div class="modal-backdrop" data-close="guide-step-modal"></div>
+    <section class="modal wide" role="dialog" aria-modal="true" aria-labelledby="guide-step-title">
+      <button class="modal-close" data-close="guide-step-modal" aria-label="Close">×</button>
+      <p class="eyebrow" id="guide-step-position">Guide step</p>
+      <h2 id="guide-step-title"></h2>
+      <p class="modal-lede" id="guide-step-description"></p>
+      <div class="step-source" id="guide-step-source" hidden></div>
+      <div class="saved-place"><span>✓</span><div><strong>Guidance is separate from your record</strong><p>This step changes only when you record what happened or explicitly mark it complete.</p></div></div>
+      <div class="modal-actions split">
+        <button class="button secondary" id="record-guide-step">Record what happened</button>
+        <button class="button primary" id="complete-guide-step">Mark step complete <span>→</span></button>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-shell" id="help-modal" hidden>
+    <div class="modal-backdrop" data-close="help-modal"></div>
+    <section class="modal wide" role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <button class="modal-close" data-close="help-modal" aria-label="Close">×</button>
+      <div class="modal-title-row"><span class="question-orb">?</span><div><p class="eyebrow">Recovery guide</p><h2 id="help-title">Let’s work through this</h2></div></div>
+      <p class="context-chip" id="help-context"></p>
+      <div class="help-summary" id="help-summary"></div>
+      <div class="saved-place"><span>⌑</span><div><strong>Your place is saved</strong><p>Close this window to return to the same Journey and timeline.</p></div></div>
+      <div class="modal-actions split"><button class="button secondary" data-close="help-modal">Return to Journey</button><button class="button primary" id="help-record">Record what happened <span>→</span></button></div>
+    </section>
+  </div>
+
+  <div class="modal-shell" id="info-modal" hidden>
+    <div class="modal-backdrop" data-close="info-modal"></div>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="info-title">
+      <button class="modal-close" data-close="info-modal" aria-label="Close">×</button>
+      <p class="eyebrow" id="info-eyebrow">Journey information</p>
+      <h2 id="info-title"></h2>
+      <div id="info-content"></div>
+      <div class="modal-actions"><button class="button secondary" data-close="info-modal">Close</button></div>
+    </section>
+  </div>
+
+  <div class="modal-shell" id="account-modal" hidden>
+    <div class="modal-backdrop" data-close="account-modal"></div>
+    <section class="modal compact-modal" role="dialog" aria-modal="true" aria-labelledby="account-title">
+      <button class="modal-close" data-close="account-modal" aria-label="Close">×</button>
+      <p class="eyebrow">Save your work</p><h2 id="account-title">Sign in with Google</h2>
+      <p>Your guest Journey is temporary. Auth0 securely handles Google sign-in; Civic Breadcrumbs keeps control of your Journey.</p>
+      <button class="button primary full" id="auth-login">Sign in with Google <span>→</span></button>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
+
+  <script src="https://cdn.auth0.com/js/auth0-spa-js/2.1/auth0-spa-js.production.js" defer></script>
+  <script src="{% static 'demo/app.js' %}" defer></script>
 </body>
 </html>

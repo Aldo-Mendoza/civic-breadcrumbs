@@ -22,6 +22,7 @@ MAX_REFERENCE = 64
 MAX_GOAL = 1000
 MAX_SUMMARY = 4000
 MAX_PARAPHRASE = 220
+MAX_GUIDE_STEP_DESCRIPTION = 700
 
 
 def _choices(enum_cls):
@@ -179,6 +180,25 @@ class BreadcrumbDraft(BaseModel):
         return self
 
 
+class GuideStepDraft(BaseModel):
+    """One bounded suggestion in a plan; never proof the citizen did it."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    title: str = ""
+    description: str = ""
+
+    @field_validator("title")
+    @classmethod
+    def _cap_title(cls, value):
+        return (value or "").strip()[:200]
+
+    @field_validator("description")
+    @classmethod
+    def _cap_description(cls, value):
+        return (value or "").strip()[:MAX_GUIDE_STEP_DESCRIPTION]
+
+
 class JourneyDraft(BaseModel):
     """A proposed journey, derived from how the citizen described their goal."""
 
@@ -189,6 +209,10 @@ class JourneyDraft(BaseModel):
     organization: str = ""
     confidence: float = Field(default=0.0, ge=0.0, le=1.0)
     extractor: str = "rules"
+    guide_summary: str = ""
+    guide_steps: list[GuideStepDraft] = Field(min_length=3, max_length=6)
+    needs_clarification: bool = False
+    clarification_question: str = ""
 
     @field_validator("title")
     @classmethod
@@ -204,6 +228,21 @@ class JourneyDraft(BaseModel):
     @classmethod
     def _cap_org(cls, value):
         return (value or "").strip()[:MAX_ORGANIZATION]
+
+    @field_validator("guide_summary")
+    @classmethod
+    def _cap_guide_summary(cls, value):
+        return (value or "").strip()[:MAX_GOAL]
+
+    @field_validator("clarification_question")
+    @classmethod
+    def _cap_clarification(cls, value):
+        return (value or "").strip()[:300]
+
+    @model_validator(mode="after")
+    def _safe_guide_shape(self):
+        self.guide_steps = [step for step in self.guide_steps if step.title][:6]
+        return self
 
 
 class ProseSummary(BaseModel):
@@ -265,8 +304,24 @@ JOURNEY_RESPONSE_SCHEMA = {
         "goal": {"type": "string"},
         "organization": {"type": "string"},
         "confidence": {"type": "number"},
+        "guide_summary": {"type": "string"},
+        "guide_steps": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 6,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string"},
+                    "description": {"type": "string"},
+                },
+                "required": ["title", "description"],
+            },
+        },
+        "needs_clarification": {"type": "boolean"},
+        "clarification_question": {"type": "string"},
     },
-    "required": ["title", "goal"],
+    "required": ["title", "goal", "guide_summary", "guide_steps"],
 }
 
 PROSE_RESPONSE_SCHEMA = {

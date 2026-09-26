@@ -15,14 +15,14 @@ Two responsibilities worth calling out:
 """
 from django.http import Http404
 
-from .models import Breadcrumb, Journey
+from .models import Breadcrumb, GuideStep, Journey
 
 
 def list_journeys(user):
     return (
         Journey.objects.filter(user=user)
         .select_related("primary_organization")
-        .prefetch_related("breadcrumbs")
+        .prefetch_related("breadcrumbs", "guide__steps")
     )
 
 
@@ -31,7 +31,11 @@ def get_owned_journey(user, journey_id):
     try:
         return (
             Journey.objects.select_related("primary_organization")
-            .prefetch_related("breadcrumbs__organization")
+            .prefetch_related(
+                "breadcrumbs__organization",
+                "guide__steps__organization",
+                "guide__steps__official_source",
+            )
             .get(pk=journey_id, user=user)
         )
     except (Journey.DoesNotExist, ValueError, TypeError):
@@ -46,6 +50,16 @@ def get_owned_breadcrumb(user, breadcrumb_id):
         )
     except (Breadcrumb.DoesNotExist, ValueError, TypeError):
         raise Http404("Breadcrumb not found.")
+
+
+def get_owned_guide_step(user, guide_step_id):
+    """Fetch a suggested step through its Journey owner, or conceal it with 404."""
+    try:
+        return GuideStep.objects.select_related(
+            "guide__journey", "organization", "official_source", "completion_breadcrumb"
+        ).get(pk=guide_step_id, guide__journey__user=user)
+    except (GuideStep.DoesNotExist, ValueError, TypeError):
+        raise Http404("Guide step not found.")
 
 
 def get_breadcrumbs(journey, confirmed_only=False):
@@ -91,6 +105,7 @@ def build_timeline(breadcrumbs):
             "instruction": breadcrumb.instruction,
             "is_confirmed": breadcrumb.is_confirmed,
             "counts_as_evidence": breadcrumb.counts_as_evidence,
+            "guide_step_id": str(breadcrumb.guide_step_id) if breadcrumb.guide_step_id else None,
         }
         for breadcrumb in breadcrumbs
     ]

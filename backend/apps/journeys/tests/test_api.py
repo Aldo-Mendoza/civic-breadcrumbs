@@ -22,6 +22,8 @@ from apps.directory.models import Organization
 from apps.directory.seed import seed_directory
 from apps.journeys import enums
 from apps.journeys.models import Breadcrumb, Journey
+from apps.journeys.services import create_guide
+from services.ai.rules import RuleBasedAIService
 
 
 class ApiTestCase(TestCase):
@@ -67,6 +69,21 @@ class JourneyCreateTests(ApiTestCase):
         self.assertEqual(body["title"], "Study Permit Extension")
         self.assertEqual(body["state"]["status"], enums.JourneyStatus.ACTIVE)
         self.assertIn("Nothing has been recorded", body["state"]["current_state"])
+
+    def test_creation_returns_a_saved_suggested_guide(self):
+        response = self.post(
+            reverse("journey-list"),
+            {"description": "I want to renew my passport before it expires."},
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["title"], "Passport Renewal")
+        guide = response.json()["guide"]
+        self.assertGreaterEqual(len(guide["steps"]), 3)
+        self.assertLessEqual(len(guide["steps"]), 6)
+        self.assertTrue(guide["needs_clarification"])
+        self.assertIn("country", guide["clarification_question"].lower())
+        self.assertTrue(all(step["official_source"] is None for step in guide["steps"]))
+        self.assertEqual(response.json()["breadcrumbs"], [])
 
     def test_create_journey_with_an_explicit_title_spends_no_ai_call(self):
         response = self.post(
@@ -285,6 +302,10 @@ class OwnershipTests(ApiTestCase):
             title="Private note",
             occurred_at="2026-09-24T09:00:00Z",
         )
+        self.other_guide = create_guide(
+            self.other_journey,
+            RuleBasedAIService().extract_journey("Renew a passport"),
+        )
 
     def test_another_users_journey_is_404_not_403(self):
         """
@@ -298,6 +319,7 @@ class OwnershipTests(ApiTestCase):
             "breadcrumb-list",
             "journey-responsible-organization",
             "journey-official-sources",
+            "journey-guide",
         ):
             with self.subTest(endpoint=name):
                 response = self.client.get(reverse(name, args=[self.other_journey.id]))
@@ -319,6 +341,94 @@ class OwnershipTests(ApiTestCase):
     def test_a_nonexistent_id_is_also_404(self):
         response = self.client.get(reverse("journey-detail", args=[uuid.uuid4()]))
         self.assertEqual(response.status_code, 404)
+
+    def test_another_users_guide_step_cannot_be_completed(self):
+        step = self.other_guide.steps.first()
+        response = self.post(reverse("guide-step-complete", args=[step.id]), {})
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(self.other_journey.breadcrumbs.count(), 1)
+
+
+class GuideProgressTests(ApiTestCase):
+    def setUp(self):
+        super().setUp()
+        self.guide = create_guide(
+            self.journey,
+            RuleBasedAIService().extract_journey(
+                "I want to renew my passport before it expires."
+            ),
+        )
+        self.step = self.guide.steps.first()
+
+    def test_guide_read_costs_no_write_and_returns_ordered_steps(self):
+        response = self.client.get(reverse("journey-guide", args=[self.journey.id]))
+        self.assertEqual(response.status_code, 200)
+        positions = [step["position"] for step in response.json()["steps"]]
+        self.assertEqual(positions, sorted(positions))
+        self.assertEqual(self.journey.breadcrumbs.count(), 0)
+
+    def test_recording_against_a_step_marks_it_in_progress(self):
+        response = self.post(
+            reverse("breadcrumb-list", args=[self.journey.id]),
+            {
+                "kind": enums.BreadcrumbKind.NOTE,
+                "title": "Checked the official service",
+                "guide_step_id": str(self.step.id),
+            },
+        )
+        self.assertEqual(response.status_code, 201)
+        self.step.refresh_from_db()
+        self.assertEqual(self.step.status, enums.GuideStepStatus.IN_PROGRESS)
+        self.assertEqual(response.json()["guide_step"], str(self.step.id))
+
+    def test_completion_is_explicit_auditable_and_idempotent(self):
+        url = reverse("guide-step-complete", args=[self.step.id])
+        first = self.post(url, {})
+        second = self.post(url, {})
+        self.assertEqual(first.status_code, 201)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(first.json()["breadcrumb_id"], second.json()["breadcrumb_id"])
+        self.assertEqual(self.journey.breadcrumbs.count(), 1)
+        self.step.refresh_from_db()
+        self.assertEqual(self.step.status, enums.GuideStepStatus.COMPLETED)
+
+    def test_deleting_completion_evidence_reopens_the_step(self):
+        complete = self.post(reverse("guide-step-complete", args=[self.step.id]), {})
+        breadcrumb_id = complete.json()["breadcrumb_id"]
+        deleted = self.client.delete(reverse("breadcrumb-detail", args=[breadcrumb_id]))
+        self.assertEqual(deleted.status_code, 200)
+        self.step.refresh_from_db()
+        self.assertEqual(self.step.status, enums.GuideStepStatus.NOT_STARTED)
+        self.assertIsNone(self.step.completion_breadcrumb_id)
+
+    def test_deleting_the_only_linked_record_resets_in_progress(self):
+        recorded = self.post(
+            reverse("breadcrumb-list", args=[self.journey.id]),
+            {
+                "kind": enums.BreadcrumbKind.NOTE,
+                "title": "Checked the guidance",
+                "guide_step_id": str(self.step.id),
+            },
+        )
+        self.client.delete(reverse("breadcrumb-detail", args=[recorded.json()["id"]]))
+        self.step.refresh_from_db()
+        self.assertEqual(self.step.status, enums.GuideStepStatus.NOT_STARTED)
+
+    def test_a_step_from_another_journey_cannot_be_linked(self):
+        other = Journey.objects.create(user=self.user, title="Other", goal="Other")
+        other_guide = create_guide(
+            other, RuleBasedAIService().extract_journey("Renew a health card")
+        )
+        response = self.post(
+            reverse("breadcrumb-list", args=[self.journey.id]),
+            {
+                "kind": enums.BreadcrumbKind.NOTE,
+                "title": "Wrong journey",
+                "guide_step_id": str(other_guide.steps.first().id),
+            },
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(self.journey.breadcrumbs.count(), 0)
 
 
 class ZeroAICostTests(ApiTestCase):

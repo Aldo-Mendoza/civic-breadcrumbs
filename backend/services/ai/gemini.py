@@ -9,9 +9,8 @@ extractor rather than to an error page.
 Gemini is treated throughout as a **limited, rate-constrained external
 service**, not a normal function call:
 
-* one logical request per call. A single ``extract_breadcrumb`` etc. may cost
-  at most one low-level HTTP attempt plus, only for a transient server error, a
-  single capped-backoff retry -- never a loop, never unbounded (§14 Rule 1).
+* one logical request per call. A single ``extract_breadcrumb`` etc. costs at
+  most one low-level HTTP attempt; provider failures degrade immediately.
 * **429 (quota/rate-limited) is never retried.** A quota error will not
   resolve itself within this request's lifetime; retrying only spends more of
   an already-exhausted budget for the exact same failure. This was the actual,
@@ -19,9 +18,8 @@ service**, not a normal function call:
   development: the previous version of this file retried on *any* exception,
   429 included, immediately and with no delay -- silently doubling the request
   count against a budget that was already gone.
-* **503 (transient overload) gets one short, capped-backoff retry**, not an
-  unbounded or eager one. More than that just delays the (already-safe)
-  fallback for no real benefit.
+* **503 is not retried either.** One explicit action must never spend two
+  provider calls.
 * constrained JSON decoding plus Pydantic validation, so unvalidated text never
   reaches the domain (§13);
 * minimal context only; the full journey history is never transmitted (§17);
@@ -37,7 +35,6 @@ explicitly before they will spend real quota.
 """
 import json
 import logging
-import time
 
 from django.conf import settings
 
@@ -55,13 +52,7 @@ from .schemas import (
 
 logger = logging.getLogger("civic.ai")
 
-#: At most one retry beyond the first attempt, and only for a transient server
-#: error (503) -- never for a client error (429 included).
-_MAX_ATTEMPTS = 2
-#: Capped exponential backoff before a 503 retry: 0.5s, then would be 1.0s,
-#: 2.0s... but _MAX_ATTEMPTS = 2 means there is only ever one such wait.
-_BACKOFF_BASE_SECONDS = 0.5
-_BACKOFF_CAP_SECONDS = 2.0
+_MAX_ATTEMPTS = 1
 
 
 class GeminiAIService:
@@ -102,13 +93,12 @@ class GeminiAIService:
         * a client error (429 included) is never retried -- a quota error
           cannot resolve itself mid-request, and retrying only spends more of
           a budget that is already exhausted;
-        * a server error (503, transient overload) gets exactly one retry,
-          after a short capped backoff, never an eager or unbounded one.
+        * a server error is not retried; the deterministic path is immediately
+          available and one action must never spend two provider calls.
         """
         from google.genai import errors as genai_errors
 
         client = self._get_client()
-        started = time.monotonic()
         last_error = None
 
         for attempt in range(1, _MAX_ATTEMPTS + 1):
@@ -124,12 +114,10 @@ class GeminiAIService:
                         "http_options": {"timeout": int(self._timeout * 1000)},
                     },
                 )
-                elapsed_ms = int((time.monotonic() - started) * 1000)
                 logger.info(
-                    "ai_operation=%s provider=gemini attempt=%s latency_ms=%s status=ok",
+                    "ai_operation=%s provider=gemini attempt=%s status=ok",
                     operation,
                     attempt,
-                    elapsed_ms,
                 )
                 return self._parse(response)
             except AIInvalidOutput:
@@ -147,8 +135,7 @@ class GeminiAIService:
                 )
                 break
             except genai_errors.ServerError as exc:
-                # 5xx, typically transient overload. Worth exactly one short,
-                # capped-backoff retry -- not zero, not unbounded.
+                # Do not turn one citizen action into multiple provider calls.
                 last_error = exc
                 logger.warning(
                     "ai_operation=%s provider=gemini attempt=%s status=server_error code=%s",
@@ -156,13 +143,6 @@ class GeminiAIService:
                     attempt,
                     getattr(exc, "code", "?"),
                 )
-                if attempt < _MAX_ATTEMPTS:
-                    delay = min(
-                        _BACKOFF_BASE_SECONDS * (2 ** (attempt - 1)),
-                        _BACKOFF_CAP_SECONDS,
-                    )
-                    time.sleep(delay)
-                    continue
                 break
             except Exception as exc:  # transport/library error, e.g. a DNS blip
                 last_error = exc
@@ -172,8 +152,6 @@ class GeminiAIService:
                     attempt,
                     type(exc).__name__,
                 )
-                if attempt < _MAX_ATTEMPTS:
-                    continue
                 break
 
         raise AIUnavailable("The AI service did not respond in time.") from last_error

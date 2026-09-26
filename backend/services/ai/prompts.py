@@ -92,7 +92,7 @@ def breadcrumb_prompt(user_text, minimal_context):
 
 
 def journey_prompt(user_text):
-    """Prompt for proposing a journey title and goal."""
+    """Prompt for proposing a journey and a small, non-authoritative guide."""
     return "\n\n".join(
         [
             _ROLE_GUARD,
@@ -100,8 +100,19 @@ def journey_prompt(user_text):
             (
                 "Propose a short title (under 60 characters) naming what the "
                 "person is trying to accomplish, and restate their goal in one "
-                "sentence using their own terms. Do not add steps, requirements "
-                "or organizations they did not mention."
+                "sentence using their own terms. Also propose 3 to 6 ordered, "
+                "plain-language guide steps. Steps are suggestions, not claims "
+                "that anything happened. Keep them procedural and generic: "
+                "understand the official process, gather what the official "
+                "service says is needed, complete the action, record confirmation, "
+                "and follow up when appropriate. Never invent a form name, URL, "
+                "fee, deadline, eligibility rule, processing time, organization, "
+                "or document requirement. Tell the person to verify specifics on "
+                "the relevant official service. If one missing fact materially "
+                "changes the process, set needs_clarification and ask exactly one "
+                "focused question; still return a safe generic guide. Return a "
+                "short guide_summary explaining that the steps are independent "
+                "guidance and official requirements must be verified."
             ),
         ]
     )

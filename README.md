@@ -36,6 +36,21 @@ product.
 derived deterministically from what you recorded. An AI helps read your sentence
 into structure; it never becomes the record.
 
+### Guidance and evidence are deliberately separate
+
+Creating a Journey now produces a small ordered guide (three to six suggested
+steps) before the citizen starts recording events. The guide is organizational
+help, not evidence and not a claim about current official requirements. When a
+jurisdiction or another load-bearing detail is missing, the guide asks one
+focused clarification and stays generic rather than inventing a form, deadline,
+fee or department.
+
+A guide step becomes **in progress** only when the citizen records something
+against it. It becomes **complete** only after an explicit confirmation, which
+creates one idempotent user-reported Breadcrumb. The timeline therefore remains
+an auditable record of what the citizen actually did, while reopening the guide,
+viewing progress, editing, or deleting records uses zero Gemini calls.
+
 ---
 
 ## Run it
@@ -63,6 +78,30 @@ DATABASE_URL=postgres://civic:civic@127.0.0.1:5432/civic_breadcrumbs
 
 Copy `.env.example` to `.env` to configure anything. Every value has a working
 default.
+
+### Guest access and Auth0 Google sign-in
+
+Guest mode is the default. Django issues an HttpOnly opaque session cookie and
+owns the temporary identity, Journey ownership, quotas, and authorization. Guest
+data expires after seven days by default; expired guest users and their Journeys
+are removed by bounded cleanup during guest traffic.
+
+To enable sign-in, create an Auth0 **Single Page Application** and API, enable
+Google in Auth0's Social Connections, and attach that connection to the
+application. Configure the allowed callback/logout/web origins for the frontend,
+then set `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, and `AUTH0_AUDIENCE` from
+`backend/.env.example`. No Auth0 client secret or Google OAuth credential belongs
+in this repository. Auth0 performs Google sign-in through Universal Login;
+Django validates the resulting RS256 API token and remains the authorization
+system.
+
+The demo keeps its access token in memory. The React client should use
+`@auth0/auth0-react` with an `Auth0Provider`, the API audience, and the default
+memory cache, then obtain tokens with `getAccessTokenSilently()` and send them as
+Bearer tokens. Do not put access tokens in `localStorage`. After login, call
+`POST /api/v1/auth/migrate-guest/` with both the bearer token and guest cookie;
+the operation is idempotent and returns a recoverable conflict without deleting
+guest data when the account is at capacity.
 
 ### Using a live Gemini key
 
@@ -171,14 +210,10 @@ summary. `AIGateway` enforces the one-call budget in code — a second call
 within one action raises rather than silently proceeding, so a future change
 that tried to chain calls together would fail a test, not ship.
 
-The retry policy treats a 429 and a 503 as different problems, because they
-are. A **429** (quota exhausted) is never retried — it cannot resolve itself
-mid-request, and retrying just spends more of a budget that's already gone.
-This is not theoretical: an earlier version of this code retried on *any*
-failure, 429 included, immediately and with no delay, and it burned through a
-free-tier daily quota in minutes during development. A **503** (transient
-overload) gets exactly one short, capped-backoff retry — worth trying once,
-not worth chasing.
+Provider failures are never automatically retried. A **429** cannot resolve
+within the request, and even a transient **503** falls through immediately to
+the deterministic engine. This keeps the stronger invariant that one explicit
+action can spend at most one Gemini call.
 
 A live evaluation suite (`manage.py eval_gemini`, 8 varied prompts) caught
 something a mocked test never could: Gemini's own judgment about whether a
@@ -284,14 +319,14 @@ cd backend
 .venv/Scripts/python.exe manage.py test
 ```
 
-115 tests, no network access required — `manage.py test` forces AI off
+128 tests, no network access required — `manage.py test` forces AI off
 regardless of what's in `.env`, so a real key sitting there can never make the
 suite flaky or dependent on quota. They cover state derivation (including the
 tense rule and the staleness thresholds), the full API lifecycle including
 closing-the-loop reporting, ownership, idempotency, throttling, schema
 validation of model output (including the cross-extractor clarification
-invariants), the Gemini retry policy (429 never retried, 503 gets exactly one
-capped-backoff retry), the out-of-scope gate, prompt injection, prompt
+invariants), the no-automatic-retry Gemini policy, the out-of-scope gate,
+prompt injection, prompt
 fencing, and an end-to-end pass with AI switched off entirely.
 
 ---

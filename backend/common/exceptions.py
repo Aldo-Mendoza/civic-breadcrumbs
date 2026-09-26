@@ -27,6 +27,8 @@ class ErrorCode:
     AI_UNAVAILABLE = "AI_UNAVAILABLE"
     AI_INVALID_OUTPUT = "AI_INVALID_OUTPUT"
     AI_RATE_LIMITED = "AI_RATE_LIMITED"
+    JOURNEY_LIMIT_REACHED = "JOURNEY_LIMIT_REACHED"
+    GUEST_MIGRATION_BLOCKED = "GUEST_MIGRATION_BLOCKED"
     OUT_OF_SCOPE = "OUT_OF_SCOPE"
     DUPLICATE_EVENT = "DUPLICATE_EVENT"
     UNSUPPORTED_ACTION = "UNSUPPORTED_ACTION"
@@ -100,6 +102,34 @@ class OutOfScope(ApiError):
     code = ErrorCode.OUT_OF_SCOPE
     recoverable = True
     suggested_action = SuggestedAction.EDIT_INPUT
+
+
+class JourneyLimitExceeded(ApiError):
+    status_code = status.HTTP_409_CONFLICT
+    code = ErrorCode.JOURNEY_LIMIT_REACHED
+    recoverable = True
+    suggested_action = SuggestedAction.NONE
+
+    def __init__(self, limit):
+        super().__init__(
+            f"You can have up to {limit} active Journey"
+            + ("." if limit == 1 else "s."),
+            extra={"limit": limit},
+        )
+
+
+class GuestMigrationBlocked(ApiError):
+    status_code = status.HTTP_409_CONFLICT
+    code = ErrorCode.GUEST_MIGRATION_BLOCKED
+    recoverable = True
+    suggested_action = SuggestedAction.NONE
+
+    def __init__(self, limit):
+        super().__init__(
+            "Your guest Journey is still safe, but your account is already at "
+            f"the {limit}-Journey limit. Archive or complete one and try again.",
+            extra={"limit": limit, "guest_data_preserved": True},
+        )
 
 
 def api_exception_handler(exc, context):

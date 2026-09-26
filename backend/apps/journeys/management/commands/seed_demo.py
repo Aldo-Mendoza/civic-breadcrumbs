@@ -28,7 +28,8 @@ from apps.directory.models import Organization
 from apps.directory.seed import seed_directory
 from apps.journeys import enums
 from apps.journeys.models import Breadcrumb, Journey
-from apps.journeys.services import recalculate_journey_state
+from apps.journeys.services import create_guide, recalculate_journey_state
+from services.ai.rules import RuleBasedAIService
 
 #: Anchored to the spec's timeline (§34). Recent enough that the demo reads as
 #: "this happened over the last week".
@@ -185,6 +186,11 @@ class Command(BaseCommand):
             journey.primary_organization = ircc
             journey.save(update_fields=["primary_organization"])
 
+        guide_draft = RuleBasedAIService().extract_journey(
+            f"{journey.title}. {journey.goal}"
+        )
+        guide = create_guide(journey, guide_draft)
+
         for entry in _breadcrumbs(ircc, university):
             Breadcrumb.objects.update_or_create(
                 journey=journey,
@@ -201,6 +207,21 @@ class Command(BaseCommand):
                     "is_confirmed": True,
                 },
             )
+
+        submitted = journey.breadcrumbs.filter(title="Application submitted").first()
+        tracking_step = guide.steps.order_by("position").last()
+        submission_step = guide.steps.filter(position=4).first()
+        if submission_step and submitted:
+            submission_step.status = enums.GuideStepStatus.COMPLETED
+            submission_step.completion_breadcrumb = submitted
+            submission_step.save(
+                update_fields=["status", "completion_breadcrumb", "updated_at"]
+            )
+            submitted.guide_step = submission_step
+            submitted.save(update_fields=["guide_step", "updated_at"])
+        if tracking_step:
+            tracking_step.status = enums.GuideStepStatus.IN_PROGRESS
+            tracking_step.save(update_fields=["status", "updated_at"])
 
         state = recalculate_journey_state(journey)
 

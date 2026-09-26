@@ -118,9 +118,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # ---------------------------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        # Swapping in Auth0 later (CLAUDE.md §31) is a one-line change here.
+        "common.auth.Auth0JWTAuthentication",
         "common.auth.DevUserAuthentication",
-        "rest_framework.authentication.SessionAuthentication",
+        "common.auth.GuestSessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
@@ -130,9 +130,12 @@ REST_FRAMEWORK = {
     ],
     "EXCEPTION_HANDLER": "common.exceptions.api_exception_handler",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
-    # Only AI-backed routes opt into the "ai" scope (CLAUDE.md §26).
+    # Constructor defaults; each AI throttle replaces these with the current
+    # guest/account/global setting per request.
     "DEFAULT_THROTTLE_RATES": {
-        "ai": os.environ.get("AI_RATE_LIMIT", "10/min"),
+        "ai_minute": os.environ.get("AI_REQUESTS_PER_MINUTE", "6/min"),
+        "ai_daily": os.environ.get("USER_AI_DAILY_LIMIT", "30/day"),
+        "ai_global_daily": os.environ.get("GLOBAL_AI_DAILY_LIMIT", "500/day"),
     },
     "UNAUTHENTICATED_USER": None,
 }
@@ -148,7 +151,8 @@ SPECTACULAR_SETTINGS = {
 }
 
 CACHES = {
-    # LocMemCache is enough for throttling; Redis is explicitly out of scope (§42).
+    # AI abuse counters are database-backed across workers. This small cache is
+    # only for short-lived reuse of exact generated results.
     "default": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
         "LOCATION": "civic-breadcrumbs",
@@ -158,6 +162,43 @@ CACHES = {
 CORS_ALLOWED_ORIGINS = env_list(
     "CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
 )
+CORS_ALLOW_CREDENTIALS = True
+
+# The browser receives only an opaque Django session id. Guest identity and
+# ownership stay server-side. Seven days is long enough for a hackathon demo,
+# but short enough that abandoned guest data is not retained indefinitely.
+GUEST_SESSION_TTL_SECONDS = int(os.environ.get("GUEST_SESSION_TTL_SECONDS", "604800"))
+SESSION_COOKIE_AGE = GUEST_SESSION_TTL_SECONDS
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", default=not DEBUG)
+SESSION_COOKIE_SAMESITE = os.environ.get("SESSION_COOKIE_SAMESITE", "Lax")
+CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", default=not DEBUG)
+CSRF_COOKIE_SAMESITE = os.environ.get("CSRF_COOKIE_SAMESITE", "Lax")
+
+# Identity establishes who the caller is; these application settings remain
+# the source of truth for authorization and resource limits.
+AUTH0_DOMAIN = os.environ.get("AUTH0_DOMAIN", "").strip().rstrip("/")
+AUTH0_AUDIENCE = os.environ.get("AUTH0_AUDIENCE", "").strip()
+AUTH0_CLIENT_ID = os.environ.get("AUTH0_CLIENT_ID", "").strip()
+AUTH0_ALGORITHMS = ("RS256",)
+AUTH0_ISSUER = f"https://{AUTH0_DOMAIN}/" if AUTH0_DOMAIN else ""
+
+GUEST_MAX_ACTIVE_JOURNEYS = int(os.environ.get("GUEST_MAX_ACTIVE_JOURNEYS", "1"))
+USER_MAX_ACTIVE_JOURNEYS = int(os.environ.get("USER_MAX_ACTIVE_JOURNEYS", "5"))
+
+GUEST_AI_DAILY_LIMIT = int(os.environ.get("GUEST_AI_DAILY_LIMIT", "5"))
+USER_AI_DAILY_LIMIT = int(os.environ.get("USER_AI_DAILY_LIMIT", "30"))
+GUEST_AI_REQUESTS_PER_MINUTE = int(
+    os.environ.get("GUEST_AI_REQUESTS_PER_MINUTE", "2")
+)
+USER_AI_REQUESTS_PER_MINUTE = int(
+    os.environ.get(
+        "USER_AI_REQUESTS_PER_MINUTE",
+        os.environ.get("AI_REQUESTS_PER_MINUTE", "6"),
+    )
+)
+GLOBAL_AI_DAILY_LIMIT = int(os.environ.get("GLOBAL_AI_DAILY_LIMIT", "500"))
+AI_RESULT_CACHE_SECONDS = int(os.environ.get("AI_RESULT_CACHE_SECONDS", "900"))
 
 # ---------------------------------------------------------------------------
 # AI gateway (CLAUDE.md §12, §37)
@@ -188,7 +229,7 @@ AI_TIMEOUT_SECONDS = float(os.environ.get("AI_TIMEOUT_SECONDS", "8"))
 AI_LIVE_TESTS = env_bool("AI_LIVE_TESTS", default=False)
 
 # Development identity. Never enabled when DEBUG is off (enforced in auth.py).
-DEV_AUTH_ENABLED = env_bool("DEV_AUTH_ENABLED", default=True)
+DEV_AUTH_ENABLED = env_bool("DEV_AUTH_ENABLED", default=RUNNING_TESTS)
 DEV_USER_EMAIL = os.environ.get("DEV_USER_EMAIL", "demo@civicbreadcrumbs.local")
 
 # Bounded text limits (CLAUDE.md §29).

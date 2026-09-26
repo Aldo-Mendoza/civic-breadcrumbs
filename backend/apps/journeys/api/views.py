@@ -25,15 +25,18 @@ from apps.journeys.handoff import build_handoff
 from apps.journeys.state import compute_staleness, derive_journey_state
 from apps.journeys.stuck import build_stuck_summary
 from common.exceptions import SuggestedAction
-from common.throttling import AIThrottle
+from common.throttling import AI_THROTTLES
 from services.ai.factory import get_gateway
 from services.ai.intent import classify_intent, out_of_scope_response
+from services.ai.rules import RuleBasedAIService
 
 from .serializers import (
     BreadcrumbCreateSerializer,
     BreadcrumbDetailSerializer,
     BreadcrumbDraftSerializer,
     BreadcrumbUpdateSerializer,
+    GuideSerializer,
+    GuideStepSerializer,
     InterpretRequestSerializer,
     JourneyCreateSerializer,
     JourneyDetailSerializer,
@@ -91,7 +94,7 @@ def _change_payload(change):
 class JourneyListCreateView(APIView):
     """GET: 0 AI calls. POST: at most 1 (§17)."""
 
-    throttle_classes = [AIThrottle]
+    throttle_classes = AI_THROTTLES
 
     def get_throttles(self):
         """
@@ -102,6 +105,10 @@ class JourneyListCreateView(APIView):
         out of recording anything (§17, §26).
         """
         if self.request.method in ("GET", "HEAD", "OPTIONS"):
+            return []
+        # A prose description is the explicit guide-generation action. Purely
+        # structured clients get a deterministic guide and spend no model call.
+        if not self.request.data.get("description"):
             return []
         return super().get_throttles()
 
@@ -128,22 +135,32 @@ class JourneyListCreateView(APIView):
         description = payload.get("description", "").strip()
         degraded = False
         extractor = "none"
+        draft = None
 
-        # Only spend a model call when the citizen gave us prose and no title.
-        if not title and description:
+        # At most one model call proposes the intent and guide together.
+        if description:
             if classify_intent(description) == enums.Intent.OUT_OF_SCOPE:
                 return Response(out_of_scope_response())
-            gateway = get_gateway()
+            gateway = get_gateway(str(request.user.pk))
             draft, degraded = gateway.extract_journey(description)
-            title = draft.title
+            title = title or draft.title
             goal = goal or draft.goal
             extractor = draft.extractor
+        else:
+            draft = RuleBasedAIService().extract_journey(
+                " ".join(part for part in (title, goal) if part)
+            )
+            extractor = "none"
 
         journey, state = services.create_journey(
             user=request.user,
             title=title or description[:60] or "My journey",
             goal=goal or description,
-            organization_name=payload.get("organization_name", ""),
+            organization_name=(
+                payload.get("organization_name", "")
+                or getattr(draft, "organization", "")
+            ),
+            guide_draft=draft,
         )
 
         body = JourneyDetailSerializer(journey).data
@@ -182,6 +199,31 @@ class JourneyDetailView(APIView):
         return Response(body)
 
 
+class JourneyGuideView(APIView):
+    """Read the saved suggested plan. This always costs zero AI calls."""
+
+    @extend_schema(responses=GuideSerializer)
+    def get(self, request, journey_id):
+        journey = selectors.get_owned_journey(request.user, journey_id)
+        return Response(GuideSerializer(journey.guide).data)
+
+
+class GuideStepCompleteView(APIView):
+    """Explicit user confirmation: complete one step and create audit evidence."""
+
+    @extend_schema(responses=GuideStepSerializer)
+    def post(self, request, guide_step_id):
+        step = selectors.get_owned_guide_step(request.user, guide_step_id)
+        step, breadcrumb, created = services.complete_guide_step(step)
+        body = GuideStepSerializer(step).data
+        body["created"] = created
+        body["breadcrumb_id"] = str(breadcrumb.id)
+        return Response(
+            body,
+            status=http_status.HTTP_201_CREATED if created else http_status.HTTP_200_OK,
+        )
+
+
 class BreadcrumbInterpretView(APIView):
     """
     Propose a structured reading. At most 1 AI call, and persists nothing.
@@ -190,7 +232,7 @@ class BreadcrumbInterpretView(APIView):
     confirmation writes to the journey.
     """
 
-    throttle_classes = [AIThrottle]
+    throttle_classes = AI_THROTTLES
 
     @extend_schema(
         request=InterpretRequestSerializer, responses=BreadcrumbDraftSerializer
@@ -215,7 +257,7 @@ class BreadcrumbInterpretView(APIView):
             journey, state, today=timezone.localdate()
         )
 
-        gateway = get_gateway()
+        gateway = get_gateway(str(request.user.pk))
         draft, degraded = gateway.extract_breadcrumb(text, context)
 
         return Response(
@@ -274,6 +316,16 @@ class BreadcrumbListCreateView(APIView):
             journey, list(selectors.evidence_breadcrumbs(journey))
         )
 
+        guide_step = None
+        if data.get("guide_step_id"):
+            guide_step = selectors.get_owned_guide_step(
+                request.user, data["guide_step_id"]
+            )
+            if guide_step.guide.journey_id != journey.id:
+                from django.http import Http404
+
+                raise Http404("Guide step not found.")
+
         breadcrumb, created, warnings = services.add_breadcrumb(
             journey,
             kind=data["kind"],
@@ -296,6 +348,7 @@ class BreadcrumbListCreateView(APIView):
                 "extractor": data.get("extractor", ""),
             },
             request_id=data.get("request_id") or None,
+            guide_step=guide_step,
         )
 
         after_breadcrumbs = list(selectors.evidence_breadcrumbs(journey))
@@ -421,7 +474,7 @@ class JourneyStuckView(APIView):
     is meant to cost nothing.
     """
 
-    throttle_classes = [AIThrottle]
+    throttle_classes = AI_THROTTLES
 
     def get_throttles(self):
         """Only spend AI-route throttle budget when polish is actually
@@ -456,7 +509,7 @@ class JourneyStuckView(APIView):
             snapshot = selectors.build_ai_snapshot(
                 journey, state, breadcrumbs, body["summary"]
             )
-            gateway = get_gateway()
+            gateway = get_gateway(str(request.user.pk))
             prose, degraded = gateway.summarize_stuck_state(snapshot)
             if prose.summary:
                 body["summary"] = prose.summary
@@ -550,7 +603,12 @@ class HandoffView(APIView):
     something the citizen was actually told (§33 Case G).
     """
 
-    throttle_classes = [AIThrottle]
+    throttle_classes = AI_THROTTLES
+
+    def get_throttles(self):
+        if str(self.request.data.get("polish", "false")).lower() != "true":
+            return []
+        return super().get_throttles()
 
     def post(self, request, journey_id):
         journey = selectors.get_owned_journey(request.user, journey_id)
@@ -573,7 +631,7 @@ class HandoffView(APIView):
             snapshot = selectors.build_ai_snapshot(
                 journey, state, breadcrumbs, body["summary"]
             )
-            gateway = get_gateway()
+            gateway = get_gateway(str(request.user.pk))
             prose, degraded = gateway.generate_handoff(snapshot)
             if prose.summary:
                 body["summary"] = prose.summary
@@ -612,10 +670,20 @@ class SaveAsNoteView(APIView):
             journey, list(selectors.evidence_breadcrumbs(journey))
         )
 
+        guide_step = None
+        guide_step_id = serializer.validated_data.get("guide_step_id")
+        if guide_step_id:
+            guide_step = selectors.get_owned_guide_step(request.user, guide_step_id)
+            if guide_step.guide.journey_id != journey.id:
+                from django.http import Http404
+
+                raise Http404("Guide step not found.")
+
         breadcrumb, created, warnings = services.save_draft_as_note(
             journey,
             serializer.validated_data["text"],
             request_id=serializer.validated_data.get("request_id") or None,
+            guide_step=guide_step,
         )
         after_breadcrumbs = list(selectors.evidence_breadcrumbs(journey))
         state = derive_journey_state(journey, after_breadcrumbs)

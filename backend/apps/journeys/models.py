@@ -64,12 +64,86 @@ class Journey(models.Model):
         return self.title
 
 
+class Guide(models.Model):
+    """A suggested plan for a Journey, never evidence about what happened."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    journey = models.OneToOneField(
+        Journey, on_delete=models.CASCADE, related_name="guide"
+    )
+    summary = models.TextField(max_length=1000, blank=True)
+    generated_by = models.CharField(max_length=32, default="rules")
+    needs_clarification = models.BooleanField(default=False)
+    clarification_question = models.CharField(max_length=300, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return f"Guide for {self.journey.title}"
+
+
+class GuideStep(models.Model):
+    """One ordered suggestion. Progress changes only through user action."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    guide = models.ForeignKey(Guide, on_delete=models.CASCADE, related_name="steps")
+    position = models.PositiveSmallIntegerField()
+    title = models.CharField(max_length=200)
+    description = models.TextField(max_length=700, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=enums.GuideStepStatus.choices,
+        default=enums.GuideStepStatus.NOT_STARTED,
+    )
+    organization = models.ForeignKey(
+        Organization,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="guide_steps",
+    )
+    official_source = models.ForeignKey(
+        "directory.OfficialSource",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="guide_steps",
+    )
+    completion_breadcrumb = models.OneToOneField(
+        "Breadcrumb",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="completed_guide_step",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["position", "created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["guide", "position"], name="unique_guide_step_position"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.position}. {self.title}"
+
+
 class Breadcrumb(models.Model):
     """A piece of evidence that moves a citizen's journey forward."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     journey = models.ForeignKey(
         Journey, on_delete=models.CASCADE, related_name="breadcrumbs"
+    )
+    guide_step = models.ForeignKey(
+        GuideStep,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="breadcrumbs",
     )
     kind = models.CharField(max_length=20, choices=enums.BreadcrumbKind.choices)
     channel = models.CharField(

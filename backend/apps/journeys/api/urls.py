@@ -11,6 +11,16 @@ urlpatterns = [
         name="journey-detail",
     ),
     path(
+        "journeys/<uuid:journey_id>/guide/",
+        views.JourneyGuideView.as_view(),
+        name="journey-guide",
+    ),
+    path(
+        "guide-steps/<uuid:guide_step_id>/complete/",
+        views.GuideStepCompleteView.as_view(),
+        name="guide-step-complete",
+    ),
+    path(
         "journeys/<uuid:journey_id>/breadcrumbs/interpret/",
         views.BreadcrumbInterpretView.as_view(),
         name="breadcrumb-interpret",
