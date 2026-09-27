@@ -26,7 +26,7 @@ class AIService(Protocol):
     #: Identifier recorded on persisted breadcrumbs for provenance.
     name: str
 
-    def extract_journey(self, user_text: str) -> JourneyDraft:
+    def extract_journey(self, user_text: str, source_context: list | None = None) -> JourneyDraft:
         """Propose a journey title and goal from a free-text description."""
         ...
 

@@ -8,6 +8,7 @@ future write path that forgets to check it explicitly.
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.utils import timezone
+from datetime import timedelta
 
 from apps.directory.models import Jurisdiction, Organization, OfficialSource, is_government_domain
 from apps.directory.seed import seed_directory
@@ -106,6 +107,18 @@ class OfficialSourceValidationTests(TestCase):
         for source in OfficialSource.objects.all():
             with self.subTest(source=source.title):
                 source.full_clean()
+
+    def test_reseeding_does_not_falsely_advance_source_freshness(self):
+        source = OfficialSource.objects.first()
+        old_verified_at = timezone.now() - timedelta(days=30)
+        source.verified_at = old_verified_at
+        source.refresh_status = "CHANGED"
+        source.save(update_fields=["verified_at", "refresh_status"])
+
+        seed_directory()
+        source.refresh_from_db()
+        self.assertEqual(source.verified_at, old_verified_at)
+        self.assertEqual(source.refresh_status, "CHANGED")
 
     def test_jurisdiction_choices_allow_federal_and_provincial(self):
         self.assertIn(Jurisdiction.FEDERAL, dict(Jurisdiction.choices))

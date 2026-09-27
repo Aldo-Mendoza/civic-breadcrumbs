@@ -40,7 +40,10 @@ _OFF_TOPIC_PATTERNS = (
     r"\bwho (won|will win)\b.*\b(game|match|election)\b",
     r"\bwhat is the weather\b",
     r"\btranslate this (into|to)\b",
-    r"\brecipe for\b",
+    r"\brecipes?\b",
+    r"\b(cook|cooking|bake|baking)\b",
+    r"\b(spaghetti|pasta|pizza|sauce)\b.*\b(make|recipe|cook)\b",
+    r"\b(make|cook)\b.*\b(spaghetti|pasta|pizza|sauce)\b",
 )
 
 _RECORD_CUES = (

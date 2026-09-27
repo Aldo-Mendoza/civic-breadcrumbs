@@ -16,7 +16,8 @@ from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from apps.directory.models import OfficialSource
+from apps.directory.models import OfficialSourceSection
+from apps.directory.grounding import source_is_fresh
 from apps.directory.selectors import match_organization_by_name, match_organization_by_topic
 
 from . import duplicates, enums
@@ -58,7 +59,7 @@ def recalculate_journey_state(journey, persist=True):
     return state
 
 
-def create_guide(journey, draft=None):
+def create_guide(journey, draft=None, allowed_source_ids=None):
     """Persist a bounded suggested plan without turning it into evidence."""
     if draft is None or not getattr(draft, "guide_steps", None):
         from services.ai.rules import RuleBasedAIService
@@ -84,10 +85,23 @@ def create_guide(journey, draft=None):
     # one has nothing curated. That would be actively misleading, not merely
     # imprecise (§21).
     candidates = (
-        list(OfficialSource.objects.filter(organization=organization, active=True))
+        [
+            section
+            for section in
+            OfficialSourceSection.objects.filter(
+                source__organization=organization,
+                source__active=True,
+                source__refresh_status="VERIFIED",
+                active=True,
+            ).select_related("source")
+            if source_is_fresh(section.source)
+        ]
         if organization is not None
         else []
     )
+    if allowed_source_ids is not None:
+        allowed = {str(source_id) for source_id in allowed_source_ids}
+        candidates = [section for section in candidates if str(section.id) in allowed]
     steps = draft.guide_steps[:6]
     assignments = _assign_official_sources(steps, candidates)
     for position, (step, source) in enumerate(zip(steps, assignments), start=1):
@@ -97,7 +111,12 @@ def create_guide(journey, draft=None):
             title=step.title,
             description=step.description,
             organization=organization,
-            official_source=source,
+            official_source=source.source if source else None,
+            official_source_section=source,
+            citation_heading=(source.heading_path or source.heading) if source else "",
+            citation_excerpt=source.text[:1200] if source else "",
+            citation_url=source.deep_link if source else "",
+            citation_retrieved_at=source.retrieved_at if source else None,
         )
     return guide
 
@@ -109,39 +128,43 @@ def _assign_official_sources(steps, candidates):
     get distinct, relevant links instead of the whole guide silently sharing
     one link or none at all.
 
-    Preference order per step: (1) an exact topic match against the step's own
-    ``topic`` hint, since that's the most specific real signal available;
-    (2) otherwise, round-robin across whatever curated sources exist for the
-    organization, so steps still show *some* variety rather than collapsing
-    onto a single repeated link; (3) ``None`` when there is nothing curated
-    for this organization at all -- an honest gap, never a guess (§21).
+    Gemini may cite only opaque section IDs supplied by Django. Deterministic
+    guides may use an exact curated topic match. There is deliberately no loose
+    or round-robin fallback: an unrelated official link is still misinformation.
     """
-    if not candidates:
-        return [None for _ in steps]
-
-    by_topic = {source.topic.strip().lower(): source for source in candidates if source.topic}
+    by_id = {str(section.id): section for section in candidates}
+    by_topic = {
+        section.source.topic.strip().lower(): section
+        for section in candidates
+        if section.source.topic
+    }
     assignments = []
-    fallback_index = 0
     for step in steps:
-        topic = (step.topic or "").strip().lower()
-        match = by_topic.get(topic) if topic else None
-        if match is None and topic:
-            # Loose match: either phrase contains the other (e.g. step topic
-            # "required documents" against a source topic "documents").
-            match = next(
-                (
-                    source
-                    for source in candidates
-                    if source.topic
-                    and (topic in source.topic.lower() or source.topic.lower() in topic)
-                ),
-                None,
+        supplied_ids = getattr(step, "source_ids", None) or []
+        match = next((by_id[source_id] for source_id in supplied_ids if source_id in by_id), None)
+        if match is None and not supplied_ids:
+            topic = (step.topic or "").strip().lower()
+            match = by_topic.get(topic) if topic else None
+        if match is None and _requires_official_support(step):
+            # Preserve the useful action label but remove an unsupported factual
+            # explanation rather than presenting model memory as official truth.
+            step.description = (
+                "This detail could not be verified against a specific approved "
+                "official section. Check the responsible official service or "
+                "provide more detail so the guide can identify the right page."
             )
-        if match is None:
-            match = candidates[fallback_index % len(candidates)]
-            fallback_index += 1
         assignments.append(match)
     return assignments
+
+
+def _requires_official_support(step):
+    text = f"{step.title} {step.description}".lower()
+    factual_markers = (
+        "must", "required", "eligible", "eligibility", "deadline", "fee",
+        "cost", "processing time", "form ", "document", "within ", "days",
+        "weeks", "months", "apply online", "submit online", "http://", "https://",
+    )
+    return any(marker in text for marker in factual_markers) or any(char.isdigit() for char in text)
 
 
 def create_journey(
@@ -151,6 +174,7 @@ def create_journey(
     organization=None,
     organization_name="",
     guide_draft=None,
+    allowed_source_ids=None,
 ):
     """Create a journey and derive its (empty) starting state."""
     if organization is None and organization_name:
@@ -178,7 +202,7 @@ def create_journey(
             goal=(goal or "").strip(),
             primary_organization=organization,
         )
-        create_guide(journey, guide_draft)
+        create_guide(journey, guide_draft, allowed_source_ids=allowed_source_ids)
         state = recalculate_journey_state(journey)
 
     logger.info("journey_created journey_id=%s", journey.id)

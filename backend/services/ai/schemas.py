@@ -192,6 +192,7 @@ class GuideStepDraft(BaseModel):
     #: relevant curated official link for *this* step, never to assert a new
     #: fact. Optional; an empty topic just means no link gets attached.
     topic: str = ""
+    source_ids: list[str] = Field(default_factory=list, max_length=1)
 
     @field_validator("title")
     @classmethod
@@ -207,6 +208,12 @@ class GuideStepDraft(BaseModel):
     @classmethod
     def _cap_topic(cls, value):
         return (value or "").strip()[:60]
+
+    @field_validator("source_ids")
+    @classmethod
+    def _safe_source_ids(cls, value):
+        # IDs are opaque server-issued section identifiers, never URLs.
+        return list(dict.fromkeys(str(item).strip()[:64] for item in (value or []) if item))[:1]
 
 
 class JourneyDraft(BaseModel):
@@ -325,8 +332,9 @@ JOURNEY_RESPONSE_SCHEMA = {
                     "title": {"type": "string"},
                     "description": {"type": "string"},
                     "topic": {"type": "string"},
+                    "source_ids": {"type": "array", "items": {"type": "string"}, "maxItems": 1},
                 },
-                "required": ["title", "description", "topic"],
+                "required": ["title", "description", "topic", "source_ids"],
             },
         },
         "needs_clarification": {"type": "boolean"},

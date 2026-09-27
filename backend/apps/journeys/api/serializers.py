@@ -9,6 +9,7 @@ Separate serializers per use case keep the contract readable enough for the
 frontend to work from without reading models.
 """
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 
 from apps.journeys import enums
 from apps.journeys.models import Breadcrumb, Guide, GuideStep, Journey
@@ -28,11 +29,14 @@ class GuideOfficialSourceSerializer(serializers.Serializer):
     url = serializers.URLField(read_only=True)
     description = serializers.CharField(read_only=True)
     verified_at = serializers.DateTimeField(read_only=True)
+    source_verified_at = serializers.DateTimeField(read_only=True)
+    section_heading = serializers.CharField(read_only=True)
+    current_status = serializers.CharField(read_only=True)
 
 
 class GuideStepSerializer(serializers.ModelSerializer):
     organization = OrganizationSummarySerializer(read_only=True)
-    official_source = GuideOfficialSourceSerializer(read_only=True)
+    official_source = serializers.SerializerMethodField()
     completion_breadcrumb_id = serializers.UUIDField(read_only=True, allow_null=True)
 
     class Meta:
@@ -48,6 +52,22 @@ class GuideStepSerializer(serializers.ModelSerializer):
             "completion_breadcrumb_id",
         ]
         read_only_fields = fields
+
+    @extend_schema_field(GuideOfficialSourceSerializer(allow_null=True))
+    def get_official_source(self, obj):
+        source = obj.official_source
+        if source is None or not obj.citation_url:
+            return None
+        return {
+            "id": str(source.id),
+            "title": source.title,
+            "url": obj.citation_url,
+            "description": obj.citation_excerpt,
+            "section_heading": obj.citation_heading,
+            "verified_at": obj.citation_retrieved_at or source.verified_at,
+            "source_verified_at": source.verified_at,
+            "current_status": source.refresh_status,
+        }
 
 
 class GuideSerializer(serializers.ModelSerializer):

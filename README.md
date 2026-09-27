@@ -125,6 +125,33 @@ Bearer tokens. Do not put access tokens in `localStorage`. After login, call
 the operation is idempotent and returns a recoverable conflict without deleting
 guest data when the account is at capacity.
 
+### Refreshing verified official guidance
+
+The source registry is seeded during every build, but page retrieval is never
+performed during a web request. Run the restricted refresh command from a Render
+Shell (or a scheduled Render job using the same repository and environment):
+
+```bash
+python manage.py refresh_official_sources
+```
+
+The command fetches only pre-registered HTTPS URLs on approved government
+domains, validates the final redirect destination, caps response size, splits
+HTML by headings, and records an immutable revision. The first fetch is accepted.
+Later content changes are quarantined: affected sources stop entering new Gemini
+prompts until someone reviews the revision in Django admin and explicitly runs:
+
+```bash
+python manage.py refresh_official_sources --source SOURCE_UUID --accept-changes
+```
+
+Schedule the check daily if the registry includes volatile fees, forms, or
+processing-time pages; otherwise weekly is the default freshness window. If a
+source is broken, changed-but-unreviewed, or older than its configured window,
+new guides receive no factual claims or citation from it. Existing guides retain
+their original heading, excerpt, deep link, and retrieval time as an audit
+snapshot. The command performs zero Gemini calls.
+
 ### Using a live Gemini key
 
 Set `GEMINI_API_KEY` and `AI_ENABLED=true` in `.env`. Two commands verify it —

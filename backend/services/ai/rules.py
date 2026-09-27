@@ -435,52 +435,24 @@ def _build_paraphrase(organization_stated, organization_display, channel, status
 
 
 def _guide_for(text):
-    """Return safe procedural suggestions without inventing official requirements."""
-    lowered = (text or "").lower()
-    clarification = ""
+    """Return one honest generic plan when Gemini is unavailable.
 
-    if "passport" in lowered:
-        if not any(country in lowered for country in ("canada", "canadian", "united states", "american", "uk", "british")):
-            clarification = "Which country issued the passport you want to renew?"
-        # No seeded passport OfficialSource exists (jurisdiction depends on the
-        # issuing country, which is unknown until the clarification above is
-        # answered), so these steps deliberately carry no topic hint -- an
-        # honest "we don't have a verified link for this yet" rather than a
-        # guessed one (§21).
-        steps = [
-            ("Confirm the issuing country and renewal route", "Use the passport authority for the country that issued your passport and confirm whether your situation follows its renewal process.", ""),
-            ("Check the official renewal guidance", "Review the issuing authority's current eligibility, timing, delivery, and submission guidance before preparing anything.", ""),
-            ("Gather the listed documents", "Make a checklist from the official service. Only collect the documents and photos it currently asks for.", ""),
-            ("Complete and review the application", "Follow the official instructions, check every entry, and avoid recording passport numbers or other identifiers in this app.", ""),
-            ("Submit through an official channel", "Use an official submission option and record the date, channel, and non-sensitive confirmation details in your Journey.", ""),
-            ("Track requests and the result", "Record acknowledgements, requests for more information, and the final outcome as they occur.", ""),
-        ]
-    elif "study permit" in lowered or "work permit" in lowered or "visa" in lowered:
-        steps = [
-            ("Check the current official process", "Open the responsible authority's current guidance and confirm which process applies to your situation.", "study permit"),
-            ("Gather the listed supporting material", "Build a checklist only from the current official instructions and note what you already have.", "study permit"),
-            ("Complete and review the application", "Follow the official process and review the information before submitting it.", "study permit"),
-            ("Submit and save confirmation", "Use the official channel, then record the submission date and non-sensitive confirmation details.", "contact"),
-            ("Track updates and instructions", "Record each acknowledgement, request, interaction, or instruction so the Journey shows where you left off.", "processing times"),
-        ]
-    elif "health card" in lowered or "ohip" in lowered:
-        steps = [
-            ("Check the official health-card process", "Confirm the current application or renewal route on the responsible provincial service's website.", "health card"),
-            ("Review eligibility and required documents", "Use only the current official checklist and identify what you still need.", "health card"),
-            ("Choose the official service channel", "Confirm whether the official process directs you online, by mail, or to a service location.", "health card"),
-            ("Complete the application", "Follow the official instructions and review the information before submitting it.", "health card"),
-            ("Record submission and follow-up", "Save non-sensitive confirmation details and record later instructions or outcomes.", ""),
-        ]
-    else:
-        # A generic fallback has no way to know which curated topic (if any)
-        # applies, so it never guesses one.
-        steps = [
-            ("Find the responsible official service", "Confirm which public organization owns this process before relying on forms or instructions.", ""),
-            ("Review the current official process", "Check the official source for eligibility, required material, available channels, and current instructions.", ""),
-            ("Prepare what the official service requests", "Create a checklist from the verified instructions and note what is already complete.", ""),
-            ("Complete the next official action", "Follow the verified process and review the information before submitting or attending.", ""),
-            ("Record confirmation and follow-up", "Add receipts, interactions, instructions, and outcomes to this Journey without sensitive identifiers.", ""),
-        ]
+    The fallback deliberately has no domain or case templates. It cannot infer
+    a person's remaining process safely, so it helps them establish their
+    current point and verify the next applicable action instead of pretending
+    to offer a personalized guide.
+    """
+    steps = [
+        ("Confirm where you are in the process", "List what you have already completed, what confirmation you received, and what remains unresolved.", ""),
+        ("Verify the next applicable official action", "Use the responsible official service to confirm the next action for your current point in the process.", ""),
+        ("Prepare only what remains", "Build a checklist from the current official instructions and exclude anything you have already completed.", ""),
+        ("Complete the next applicable action", "Follow the verified instruction for your current stage and review it before submitting, sending, or attending.", ""),
+        ("Record confirmation and follow-up", "Record non-sensitive confirmations, interactions, new instructions, and outcomes so the Journey shows where you left off.", ""),
+    ]
+    clarification = (
+        "What have you already completed, and what response, instruction, or "
+        "result are you waiting for now?"
+    )
 
     return (
         [
@@ -505,7 +477,7 @@ class RuleBasedAIService:
 
     # -- journeys ----------------------------------------------------------
 
-    def extract_journey(self, user_text):
+    def extract_journey(self, user_text, source_context=None):
         text = (user_text or "").strip()
         lowered = text.lower()
 
@@ -556,9 +528,9 @@ class RuleBasedAIService:
             confidence=0.8 if title != "My journey" else 0.4,
             extractor=self.name,
             guide_summary=(
-                "Use these suggested steps to organize the process. Verify current "
-                "requirements with the responsible official service, then record "
-                "what you actually do in your Journey."
+                "Gemini was not used, so this is a generic continuity guide rather "
+                "than a case-specific plan. Confirm your current point with the "
+                "responsible official service, then record what you actually do."
             ),
             guide_steps=guide_steps,
             needs_clarification=bool(clarification),

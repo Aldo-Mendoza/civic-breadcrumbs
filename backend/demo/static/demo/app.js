@@ -293,11 +293,19 @@
       $("guide-progress-label").textContent = "0 of 0 steps complete";
       $("guide-progress-bar").style.width = "0%";
       $("guide-clarification").hidden = true;
+      $("guide-engine").textContent = "No generator recorded";
       return;
     }
     const steps = guide.steps || [];
     const completed = steps.filter((step) => step.status === "COMPLETED").length;
     $("guide-summary").textContent = guide.summary;
+    const usedGemini = guide.generated_by === "gemini";
+    $("guide-engine").textContent = usedGemini
+      ? "Generated with Gemini AI"
+      : "Generic rules-based fallback • no Gemini output";
+    $("guide-engine").title = usedGemini
+      ? "This saved guide was produced by the configured Gemini model."
+      : "Gemini was not used for this guide. The fallback is deliberately generic and should not be treated as case-specific guidance.";
     $("guide-progress-label").textContent = `${completed} of ${steps.length} steps complete`;
     $("guide-progress-bar").style.width = steps.length ? `${Math.round((completed / steps.length) * 100)}%` : "0%";
     const clarification = $("guide-clarification");
@@ -320,12 +328,14 @@
   }
 
   /*
-   * A link-preview style card for a curated official source: site name,
-   * description, and the bare URL as its own visible line -- the same shape
+   * A section-level preview: agency, precise heading, supporting excerpt, and
+   * a deep link. The server snapshots these values with the guide step so a
+   * later page refresh cannot rewrite what the citizen originally saw.
+   * The bare URL remains its own visible line -- the same shape
    * as a normal chat-app link preview, so a citizen recognizes it as a real,
    * verifiable government page rather than inline blue text. Built entirely
-   * from our own curated, human-verified fields (title/description/url); this
-   * never fetches live metadata from the target site (CLAUDE.md §9.5).
+   * from server-validated fields; the browser never fetches or searches for
+   * source metadata itself.
    */
   function siteNameFor(url) {
     try {
@@ -345,10 +355,14 @@
     container.hidden = false;
     const siteName = (organization && (organization.short_name || organization.name)) || siteNameFor(source.url);
     const verified = source.verified_at ? `Link checked ${formatDate(source.verified_at)}` : "Curated official source";
+    const freshnessWarning = source.current_status && source.current_status !== "VERIFIED"
+      ? `<p class="source-warning">This official page has changed or is unavailable. The excerpt below is the version used when this guide was created.</p>`
+      : "";
     container.innerHTML = `
       <div class="source-preview">
-        <p class="source-eyebrow">${escapeHTML(siteName)}</p>
-        <strong>${escapeHTML(source.title)}</strong>
+        <p class="source-eyebrow">${escapeHTML(siteName)} • ${escapeHTML(source.title)}</p>
+        <strong>${escapeHTML(source.section_heading || source.title)}</strong>
+        ${freshnessWarning}
         <p>${escapeHTML(source.description || "Check the current official instructions before acting.")}</p>
         <a href="${escapeHTML(source.url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(source.url)}</a>
         <span class="source-verified">${escapeHTML(verified)}</span>
@@ -440,6 +454,10 @@
     $("draft-original").textContent = "You said: “" + rawText + "”";
     const tags = [KIND_LABELS[draft.kind] || draft.kind, draft.channel !== "UNKNOWN" ? draft.channel.replaceAll("_", " ") : "", draft.organization || ""].filter(Boolean);
     $("draft-tags").innerHTML = tags.map((tag) => `<span>${escapeHTML(tag)}</span>`).join("");
+    const usedGemini = meta && meta.extractor === "gemini";
+    $("draft-engine").textContent = usedGemini
+      ? "Interpretation source: Gemini AI"
+      : "Interpretation source: rules-based fallback (no Gemini output used)";
     const notice = $("draft-notice");
     notice.hidden = !(draft.needs_clarification || (meta && meta.degraded));
     notice.textContent = draft.needs_clarification ? (draft.clarification_question || "Please review the details carefully.") : "Automatic interpretation was unavailable, so a rules-based draft was prepared.";
@@ -649,6 +667,12 @@
       const description = `Goal: ${title}\nSituation: ${situation || "No additional details provided."}`;
       const goal = situation ? `${title}. ${situation}` : title;
       const body = await api("/journeys/", { method: "POST", body: JSON.stringify({ goal, description }) });
+      if (body.type === "OUT_OF_SCOPE") {
+        closeModal("goal-confirm-modal");
+        toast(body.message || "That goal is outside this public-service Journey tool.");
+        $("goal-input").focus();
+        return;
+      }
       closeModal("goal-confirm-modal");
       await loadJourneys();
       await selectJourney(body.id, true);

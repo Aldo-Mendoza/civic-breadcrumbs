@@ -149,9 +149,10 @@ def official_sources_for(journey, organization=None, limit=5):
     """
     Curated official links relevant to a journey.
 
-    Seeded and human-verified; never scraped at request time (§9.5). Each record
-    carries ``verified_at`` so the citizen can judge freshness rather than
-    trusting us implicitly.
+    Seeded and human-verified; never fetched at request time (§9.5). Scheduled
+    restricted refreshes maintain section content separately. Each record carries
+    ``verified_at`` so the citizen can judge provenance rather than trusting us
+    implicitly.
     """
     from .models import OfficialSource
 

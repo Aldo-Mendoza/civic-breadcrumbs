@@ -10,9 +10,11 @@ landing page. ``verified_at`` records when a human last confirmed the link, and
 it is shown to the citizen -- we ask them to trust the directory only as far as
 its stated freshness.
 """
+import hashlib
+
 from django.utils import timezone
 
-from .models import Jurisdiction, Organization, OfficialSource
+from .models import Jurisdiction, Organization, OfficialSource, OfficialSourceSection
 
 ORGANIZATIONS = [
     {
@@ -40,6 +42,8 @@ ORGANIZATIONS = [
             "immigration",
             "permit extension",
             "biometrics",
+            "passport",
+            "passport renewal",
         ],
     },
     {
@@ -156,6 +160,26 @@ OFFICIAL_SOURCES = [
         "topic": "contact",
     },
     {
+        "organization": "Immigration, Refugees and Citizenship Canada",
+        "title": "Renew a passport in Canada",
+        "url": "https://www.canada.ca/en/immigration-refugees-citizenship/services/canadian-passports/renew-adult-passport.html",
+        "description": (
+            "Official Passport Program guidance for checking whether an adult "
+            "passport can be renewed and following the applicable renewal route."
+        ),
+        "topic": "passport renewal",
+    },
+    {
+        "organization": "Immigration, Refugees and Citizenship Canada",
+        "title": "Apply for a child passport in Canada",
+        "url": "https://www.canada.ca/en/immigration-refugees-citizenship/services/canadian-passports/child-passport.html",
+        "description": (
+            "Official Passport Program guidance for a child or minor passport "
+            "application, including situation-specific instructions."
+        ),
+        "topic": "child passport minor",
+    },
+    {
         "organization": "Service Canada",
         "title": "Apply for a Social Insurance Number",
         "url": "https://www.canada.ca/en/employment-social-development/services/sin.html",
@@ -198,7 +222,7 @@ def seed_directory(stdout=None):
     created_sources = 0
     for entry in OFFICIAL_SOURCES:
         organization = Organization.objects.get(name=entry["organization"])
-        source, created = OfficialSource.objects.update_or_create(
+        source, created = OfficialSource.objects.get_or_create(
             organization=organization,
             url=entry["url"],
             defaults={
@@ -209,11 +233,36 @@ def seed_directory(stdout=None):
                 "verified_at": now,
             },
         )
+        if not created:
+            # A deployment may update catalog labels, but it must never make a
+            # stale or changed page look freshly verified. Freshness advances
+            # only through the restricted refresh/review workflow.
+            source.title = entry["title"]
+            source.description = entry["description"]
+            source.topic = entry["topic"]
+            source.active = True
+            source.save(update_fields=["title", "description", "topic", "active"])
         # Belt-and-braces: fail the seed loudly rather than silently persist a
         # non-government link. update_or_create doesn't run model validation
         # on its own, so this is what actually makes OfficialSource.clean()
         # (government-domain + federal/provincial-only rule) bite here.
         source.full_clean()
+        # A manually verified, minimal section keeps a freshly seeded install
+        # useful before its first network refresh. The restricted refresher
+        # replaces this with heading-level page content after deployment.
+        OfficialSourceSection.objects.update_or_create(
+            source=source,
+            position=1,
+            defaults={
+                "heading": entry["title"],
+                "heading_path": entry["title"],
+                "anchor": "",
+                "text": entry["description"],
+                "content_hash": hashlib.sha256(entry["description"].encode()).hexdigest(),
+                "active": True,
+                "retrieved_at": now,
+            },
+        )
         created_sources += int(created)
 
     if stdout is not None:

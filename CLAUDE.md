@@ -501,7 +501,11 @@ OfficialSource
 
 For the MVP, these records can be seeded.
 
-Do not add uncontrolled live web browsing unless the team explicitly decides it is necessary.
+Official pages may be refreshed only through the server-side restricted source
+pipeline: URLs are pre-registered, final redirects must remain on approved
+domains, HTML is stored as heading-level sections, changes are revisioned and
+quarantined until accepted, and stale or broken material is excluded from new
+guides. Never give Gemini or the browser uncontrolled web-search access.
 
 ---
 

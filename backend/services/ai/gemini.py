@@ -170,9 +170,9 @@ class GeminiAIService:
 
     # -- contract ----------------------------------------------------------
 
-    def extract_journey(self, user_text):
+    def extract_journey(self, user_text, source_context=None):
         payload = self._generate(
-            prompts.journey_prompt(user_text),
+            prompts.journey_prompt(user_text, source_context),
             JOURNEY_RESPONSE_SCHEMA,
             "extract_journey",
         )

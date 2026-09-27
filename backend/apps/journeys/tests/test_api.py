@@ -24,6 +24,7 @@ from apps.journeys import enums
 from apps.journeys.models import Breadcrumb, Journey
 from apps.journeys.services import create_guide
 from services.ai.rules import RuleBasedAIService
+from services.ai.schemas import GuideStepDraft, JourneyDraft
 
 
 class ApiTestCase(TestCase):
@@ -81,7 +82,7 @@ class JourneyCreateTests(ApiTestCase):
         self.assertGreaterEqual(len(guide["steps"]), 3)
         self.assertLessEqual(len(guide["steps"]), 6)
         self.assertTrue(guide["needs_clarification"])
-        self.assertIn("country", guide["clarification_question"].lower())
+        self.assertIn("already completed", guide["clarification_question"].lower())
         self.assertTrue(all(step["official_source"] is None for step in guide["steps"]))
         self.assertEqual(response.json()["breadcrumbs"], [])
 
@@ -105,6 +106,17 @@ class JourneyCreateTests(ApiTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["type"], enums.Intent.OUT_OF_SCOPE)
         self.assertEqual(Journey.objects.count(), before)
+
+    def test_spaghetti_recipe_does_not_create_a_journey_or_spend_ai(self):
+        before = Journey.objects.count()
+        response = self.post(
+            reverse("journey-list"),
+            {"description": "Goal: Spaghetti sauce recipe\nSituation: I want to cook dinner."},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["type"], enums.Intent.OUT_OF_SCOPE)
+        self.assertEqual(Journey.objects.count(), before)
+
 
 
 class InterpretAndConfirmTests(ApiTestCase):
@@ -439,25 +451,51 @@ class GuideStepOfficialSourceTests(ApiTestCase):
     request "add a link to the step about filling in forms" was pointing at.
     """
 
+    def case_specific_draft(self):
+        """Representative validated Gemini output with per-step topic hints."""
+        return JourneyDraft(
+            title="Study Permit Extension",
+            goal="Extend my study permit",
+            extractor="gemini",
+            guide_summary="Remaining steps based on the described situation.",
+            guide_steps=[
+                GuideStepDraft(
+                    title="Review the remaining request",
+                    description="Check the current official instructions.",
+                    topic="study permit",
+                ),
+                GuideStepDraft(
+                    title="Contact the responsible office",
+                    description="Use the verified contact channel.",
+                    topic="contact",
+                ),
+                GuideStepDraft(
+                    title="Track the submitted application",
+                    description="Review the official status guidance.",
+                    topic="processing times",
+                ),
+            ],
+        )
+
     def test_steps_with_different_topics_get_different_official_sources(self):
         guide = create_guide(
             self.journey,
-            RuleBasedAIService().extract_journey("Extend my study permit"),
+            self.case_specific_draft(),
         )
         steps = list(guide.steps.all())
         self.assertGreaterEqual(len(steps), 3)
         # IRCC has three seeded sources (study permit / processing times /
-        # contact); the study-permit branch's steps carry matching topic
-        # hints, so this must not collapse onto one repeated source.
+        # contact); validated Gemini step topics must not collapse onto one
+        # repeated source.
         sources = {step.official_source_id for step in steps}
         self.assertGreater(len(sources), 1)
 
     def test_a_step_topic_matches_its_own_seeded_source_not_a_generic_one(self):
         guide = create_guide(
             self.journey,
-            RuleBasedAIService().extract_journey("Extend my study permit"),
+            self.case_specific_draft(),
         )
-        tracking_step = guide.steps.get(title="Track updates and instructions")
+        tracking_step = guide.steps.get(title="Track the submitted application")
         self.assertIsNotNone(tracking_step.official_source)
         self.assertEqual(tracking_step.official_source.topic, "processing times")
 

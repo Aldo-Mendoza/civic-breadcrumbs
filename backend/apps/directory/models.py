@@ -70,9 +70,9 @@ class OfficialSource(models.Model):
     """
     A curated link to authoritative public information (CLAUDE.md §9.5).
 
-    Seeded, never scraped: uncontrolled live web browsing is out of scope (§9.5).
-    ``verified_at`` is surfaced to the citizen so they can judge freshness
-    themselves rather than trusting us implicitly.
+    Seeded and optionally refreshed through a restricted server-side pipeline;
+    URLs are never discovered by a model or fetched during a citizen request.
+    ``verified_at`` is surfaced so the citizen can judge human verification.
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -84,6 +84,22 @@ class OfficialSource(models.Model):
     description = models.TextField(blank=True)
     topic = models.CharField(max_length=100, blank=True)
     active = models.BooleanField(default=True)
+    final_url = models.URLField(max_length=500, blank=True)
+    etag = models.CharField(max_length=300, blank=True)
+    last_modified = models.CharField(max_length=300, blank=True)
+    content_hash = models.CharField(max_length=64, blank=True)
+    last_checked_at = models.DateTimeField(null=True, blank=True)
+    refresh_status = models.CharField(
+        max_length=20,
+        choices=(
+            ("VERIFIED", "Verified"),
+            ("CHANGED", "Changed - review required"),
+            ("BROKEN", "Broken"),
+        ),
+        default="VERIFIED",
+    )
+    refresh_error = models.CharField(max_length=500, blank=True)
+    refresh_interval_hours = models.PositiveIntegerField(default=168)
     verified_at = models.DateTimeField(
         help_text="When a human last confirmed this link was correct."
     )
@@ -128,3 +144,55 @@ class OfficialSource(models.Model):
                     )
                 }
             )
+
+
+class OfficialSourceSection(models.Model):
+    """A precise, retrievable passage from an approved official page."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    source = models.ForeignKey(
+        OfficialSource, on_delete=models.CASCADE, related_name="sections"
+    )
+    heading = models.CharField(max_length=300)
+    heading_path = models.CharField(max_length=700, blank=True)
+    anchor = models.CharField(max_length=300, blank=True)
+    text = models.TextField(max_length=12000)
+    position = models.PositiveIntegerField(default=1)
+    content_hash = models.CharField(max_length=64)
+    active = models.BooleanField(default=True)
+    retrieved_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ["source", "position"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["source", "position"], name="unique_source_section_position"
+            )
+        ]
+
+    @property
+    def deep_link(self):
+        base = self.source.final_url or self.source.url
+        return f"{base}#{self.anchor}" if self.anchor else base
+
+    def __str__(self):
+        return f"{self.source.title} — {self.heading}"
+
+
+class OfficialSourceRevision(models.Model):
+    """Immutable fetch history used to audit and review official-page changes."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    source = models.ForeignKey(
+        OfficialSource, on_delete=models.CASCADE, related_name="revisions"
+    )
+    retrieved_at = models.DateTimeField(auto_now_add=True)
+    final_url = models.URLField(max_length=500)
+    content_hash = models.CharField(max_length=64)
+    page_title = models.CharField(max_length=300, blank=True)
+    sections = models.JSONField(default=list)
+    accepted = models.BooleanField(default=False)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-retrieved_at"]

@@ -124,6 +124,10 @@ textarea { min-height: 150px; resize: vertical; line-height: 1.5; }
 .guide-heading-row { display: grid; grid-template-columns: 1fr 300px; align-items: end; gap: 32px; margin-bottom: 18px; }
 .guide-heading-row h2 { margin-bottom: 7px; }
 .guide-heading-row p { color: var(--muted); margin-bottom: 0; max-width: 680px; }
+.guide-provenance-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.guide-provenance-row .eyebrow { margin: 0; }
+.ai-source-badge { display: inline-flex; align-items: center; border: 1px solid #bfd2d0; border-radius: 999px; padding: 4px 9px; background: #f3f8f7; color: #315d59; font-size: .75rem; font-weight: 750; letter-spacing: .01em; }
+.ai-source-line { color: var(--muted); font-size: .84rem; margin: 12px 0 0; }
 .guide-progress-copy { text-align: right; }
 .guide-progress-copy strong { display: block; margin-bottom: 10px; }
 .progress-track { height: 12px; overflow: hidden; border: 1px solid #b9c9ce; border-radius: 999px; background: #edf2f3; }
@@ -248,6 +252,7 @@ textarea { min-height: 150px; resize: vertical; line-height: 1.5; }
 .source-preview p { color: var(--muted); margin: 0 0 12px; }
 .source-preview a { display: block; color: var(--teal-dark); font-weight: 700; word-break: break-all; margin-bottom: 8px; }
 .source-verified { display: block; color: var(--muted); font-size: .82rem; }
+.source-preview .source-warning { color: #8a3f21; font-weight: 700; }
 
 .toast { position: fixed; right: 26px; bottom: 26px; z-index: 220; max-width: 430px; border-radius: 10px; background: #092f2c; color: #fff; padding: 14px 18px; box-shadow: var(--shadow); }
 footer { min-height: 50px; border-top: 1px solid var(--soft-line); display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--muted); font-size: .82rem; background: rgba(255,255,255,.64); }

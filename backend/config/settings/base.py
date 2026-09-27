@@ -229,6 +229,9 @@ AI_ENABLED = False if RUNNING_TESTS else env_bool("AI_ENABLED", default=True)
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-lite-latest")
 AI_TIMEOUT_SECONDS = float(os.environ.get("AI_TIMEOUT_SECONDS", "8"))
+OFFICIAL_SOURCE_FETCH_TIMEOUT_SECONDS = float(
+    os.environ.get("OFFICIAL_SOURCE_FETCH_TIMEOUT_SECONDS", "30")
+)
 
 # A second, explicit gate on top of RUNNING_TESTS. RUNNING_TESTS protects the
 # normal test suite automatically and needs no developer action; this flag

@@ -17,9 +17,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.directory.selectors import (
+    match_organization_by_topic,
     official_sources_for,
     resolve_responsible_organization,
 )
+from apps.directory.grounding import source_context_for
 from apps.journeys import enums, feedback, selectors, services
 from apps.journeys.handoff import build_handoff
 from apps.journeys.state import compute_staleness, derive_journey_state
@@ -136,13 +138,18 @@ class JourneyListCreateView(APIView):
         degraded = False
         extractor = "none"
         draft = None
+        source_context = []
 
         # At most one model call proposes the intent and guide together.
         if description:
             if classify_intent(description) == enums.Intent.OUT_OF_SCOPE:
                 return Response(out_of_scope_response())
             gateway = get_gateway(str(request.user.pk))
-            draft, degraded = gateway.extract_journey(description)
+            grounding_organization = match_organization_by_topic(
+                " ".join(part for part in (title, goal, description) if part)
+            )
+            source_context = source_context_for(description, grounding_organization)
+            draft, degraded = gateway.extract_journey(description, source_context)
             title = title or draft.title
             goal = goal or draft.goal
             extractor = draft.extractor
@@ -161,6 +168,9 @@ class JourneyListCreateView(APIView):
                 or getattr(draft, "organization", "")
             ),
             guide_draft=draft,
+            allowed_source_ids=(
+                [entry["id"] for entry in source_context] if description else None
+            ),
         )
 
         body = JourneyDetailSerializer(journey).data
@@ -587,6 +597,18 @@ class OfficialSourcesView(APIView):
                         },
                         "source_type": enums.SourceType.OFFICIAL,
                         "verified_at": source.verified_at,
+                        "last_checked_at": source.last_checked_at,
+                        "refresh_status": source.refresh_status,
+                        "sections": [
+                            {
+                                "id": str(section.id),
+                                "heading": section.heading_path or section.heading,
+                                "url": section.deep_link,
+                                "excerpt": section.text[:1200],
+                                "retrieved_at": section.retrieved_at,
+                            }
+                            for section in source.sections.filter(active=True)
+                        ],
                     }
                     for source in sources
                 ]

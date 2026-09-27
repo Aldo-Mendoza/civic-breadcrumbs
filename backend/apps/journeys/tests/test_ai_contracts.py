@@ -566,6 +566,40 @@ class PromptFencingTests(TestCase):
         self.assertNotIn("confirmed_events", prompt)
         self.assertNotIn("breadcrumb_id", prompt)
 
+    def test_journey_prompt_requires_remaining_steps_from_current_position(self):
+        from services.ai import prompts
+
+        description = (
+            "Goal: Extend my work permit\n"
+            "Situation: I already submitted and received a request for a document."
+        )
+        prompt = prompts.journey_prompt(description)
+
+        self.assertIn(description, prompt)
+        self.assertIn("REMAINING steps", prompt)
+        self.assertIn("Never repeat a step the person says is complete", prompt)
+        self.assertIn("different starting points", prompt)
+
+
+class GenericGuideFallbackTests(TestCase):
+    """Without Gemini, the fallback is honest and never case-templated."""
+
+    def test_same_generic_fallback_is_used_for_different_civic_cases(self):
+        service = RuleBasedAIService()
+        beginning = service.extract_journey(
+            "I want to extend my work permit and have not started."
+        )
+        middle = service.extract_journey(
+            "I already submitted my work permit extension and received a request."
+        )
+
+        self.assertEqual(
+            [step.title for step in beginning.guide_steps],
+            [step.title for step in middle.guide_steps],
+        )
+        self.assertTrue(beginning.needs_clarification)
+        self.assertIn("generic", beginning.guide_summary.lower())
+
 
 class DegradedResponseTests(TestCase):
     """The interface must be able to tell the citizen when AI was unavailable."""

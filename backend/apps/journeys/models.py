@@ -109,6 +109,19 @@ class GuideStep(models.Model):
         on_delete=models.SET_NULL,
         related_name="guide_steps",
     )
+    official_source_section = models.ForeignKey(
+        "directory.OfficialSourceSection",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="guide_steps",
+    )
+    # Immutable citation snapshot: refreshing a page must not rewrite the
+    # historical guidance the citizen actually saw.
+    citation_heading = models.CharField(max_length=300, blank=True)
+    citation_excerpt = models.TextField(max_length=1200, blank=True)
+    citation_url = models.URLField(max_length=800, blank=True)
+    citation_retrieved_at = models.DateTimeField(null=True, blank=True)
     completion_breadcrumb = models.OneToOneField(
         "Breadcrumb",
         null=True,

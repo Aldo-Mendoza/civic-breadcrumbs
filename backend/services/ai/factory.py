@@ -122,7 +122,9 @@ class AIGateway:
 
     # -- contract ----------------------------------------------------------
 
-    def extract_journey(self, user_text):
+    def extract_journey(self, user_text, source_context=None):
+        if source_context:
+            return self._run("extract_journey", user_text, source_context)
         return self._run("extract_journey", user_text)
 
     def extract_breadcrumb(self, user_text, minimal_context):
