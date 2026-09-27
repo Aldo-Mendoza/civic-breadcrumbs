@@ -25,7 +25,9 @@ services:
       - key: DJANGO_DEBUG
         value: "false"
       - key: AI_ENABLED
-        value: "false"
+        value: "true"
+      - key: GEMINI_API_KEY
+        sync: false
       - key: SESSION_COOKIE_SECURE
         value: "true"
       - key: CSRF_COOKIE_SECURE
