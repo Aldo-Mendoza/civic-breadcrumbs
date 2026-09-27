@@ -36,6 +36,22 @@ def _is_french():
     return (get_language() or "en").startswith("fr")
 
 
+def _phrase_present(phrase, lowered):
+    """
+    Whether ``phrase`` appears in ``lowered`` as a whole word/phrase, not as a
+    substring of an unrelated word.
+
+    A plain ``phrase in lowered`` check is exactly the bug this guards
+    against: a short keyword like "sin" is a substring of ordinary words
+    ("since", "using", "basin"), so an unqualified containment check silently
+    mislabels a citizen's goal (§21's "never invent" concern applies just as
+    much to a wrong topic as to a wrong organization). Word boundaries are
+    checked only at the two ends of the whole phrase -- an internal space
+    already separates words, so this works for multi-word cues too.
+    """
+    return re.search(r"\b" + re.escape(phrase) + r"\b", lowered) is not None
+
+
 # ---------------------------------------------------------------------------
 # Cue tables. Ordered most-specific first where order matters.
 #
@@ -752,6 +768,8 @@ class RuleBasedAIService:
             ("health card", "Health Card"),
             ("ohip", "Health Coverage"),
             ("driver", "Driver Licence"),
+            ("drivers", "Driver Licence"),
+            ("driver's", "Driver Licence"),
             ("renew my passport", "Passport Renewal"),
             ("renew a passport", "Passport Renewal"),
             ("passport renewal", "Passport Renewal"),
@@ -790,7 +808,7 @@ class RuleBasedAIService:
         )
         title = ""
         for cue, candidate in (topic_titles_fr if french else topic_titles_en):
-            if cue in lowered:
+            if _phrase_present(cue, lowered):
                 title = candidate
                 break
 

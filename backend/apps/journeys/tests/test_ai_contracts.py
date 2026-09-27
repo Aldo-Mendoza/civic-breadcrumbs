@@ -810,6 +810,32 @@ class GenericGuideFallbackTests(TestCase):
         self.assertTrue(beginning.needs_clarification)
         self.assertIn("generic", beginning.guide_summary.lower())
 
+    def test_a_short_keyword_does_not_match_inside_an_unrelated_word(self):
+        """
+        Regression test for a live bug: "sin" (Social Insurance Number) is a
+        substring of "since", and the title-matching loop used to take the
+        first substring match in list order -- "sin" is listed before
+        "driver" -- mislabeling a driver's-licence description as a SIN
+        request purely because the text happened to contain the word "since".
+        """
+        draft = RuleBasedAIService().extract_journey(
+            "drivers license renewal. i need to renew my drivers license "
+            "since it is about to expire, i am in ottawa canada. i haven't "
+            "done anything yet."
+        )
+        self.assertEqual(draft.title, "Driver Licence")
+
+    def test_a_short_organization_keyword_does_not_match_inside_an_unrelated_word(self):
+        from apps.directory.selectors import match_organization_by_topic
+
+        seed_directory()
+        org = match_organization_by_topic(
+            "drivers license renewal. i need to renew my drivers license "
+            "since it is about to expire, i am in ottawa canada."
+        )
+        self.assertIsNotNone(org)
+        self.assertEqual(org.short_name, "Ontario")
+
 
 class FrenchPromptAndFallbackTests(TestCase):
     """

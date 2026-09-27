@@ -14,6 +14,8 @@ weaker tools get wrong:
   manufactures a human to contact when the correct answer is to wait sends
   people into phone queues for nothing.
 """
+import re
+
 from django.utils.translation import gettext_lazy as _
 
 from .models import Organization
@@ -69,7 +71,11 @@ def match_organization_by_topic(text):
     Route a topic to the organization that handles it.
 
     Longest keyword wins, so "study permit" beats a bare "permit" and
-    "health card" is not captured by a generic "health" rule.
+    "health card" is not captured by a generic "health" rule. Matching is
+    word-boundary-safe: a short keyword like "sin" or "ei" must appear as its
+    own word, not as a substring of an unrelated one ("since", "receive") --
+    without this, "longest wins" only protects a match when a longer,
+    correct keyword also happens to be present in the same text.
     """
     if not text:
         return None
@@ -79,7 +85,9 @@ def match_organization_by_topic(text):
     for org in Organization.objects.all():
         for keyword in org.topic_keywords or []:
             keyword = (keyword or "").strip().lower()
-            if keyword and keyword in lowered and len(keyword) > best_length:
+            if not keyword or len(keyword) <= best_length:
+                continue
+            if re.search(r"\b" + re.escape(keyword) + r"\b", lowered):
                 best = org
                 best_length = len(keyword)
     return best
