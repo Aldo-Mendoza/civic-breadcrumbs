@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>brdcrmbs | Civic Breadcrumbs</title>
+  <title>brdcrmbs</title>
+  <meta name="description" content="brdcrmbs keeps a structured record of your public-service journey — what happened, where you left off, and what to do next.">
   <link rel="icon" type="image/png" sizes="32x32" href="{% static 'demo/img/favicon-32x32.png' %}">
   <link rel="icon" type="image/png" href="{% static 'demo/img/favicon.png' %}">
   <link rel="apple-touch-icon" href="{% static 'demo/img/apple-touch-icon.jpeg' %}">
@@ -17,9 +18,15 @@
       <span></span><span></span><span></span>
     </button>
     <button class="brand" id="home-button" type="button">
-      <img src="{% static 'demo/img/logo.jpeg' %}" alt="brdcrmbs — Civic Breadcrumbs, home">
+      <img src="{% static 'demo/img/logo.jpeg' %}" alt="brdcrmbs, home">
     </button>
+    <nav class="landing-nav" id="landing-nav" aria-label="Page sections" hidden>
+      <a href="#how-it-works">How it works</a>
+      <a href="#why-brdcrmbs">Why brdcrmbs</a>
+    </nav>
     <div class="header-actions">
+      <button class="text-link" id="landing-nav-signin" type="button" hidden>Sign in</button>
+      <button class="button primary compact" id="landing-nav-start" type="button" hidden>Get started <span aria-hidden="true">→</span></button>
       <button class="profile-button" id="profile-button" aria-label="Account and sign in">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0H5Z"/></svg>
       </button>
@@ -30,7 +37,7 @@
   <aside class="sidebar" id="sidebar" aria-label="Your journeys" aria-hidden="true" inert>
     <div class="sidebar-head">
       <div>
-        <p class="eyebrow">Civic Breadcrumbs</p>
+        <p class="eyebrow">brdcrmbs</p>
         <h2>Your journeys</h2>
       </div>
       <button class="icon-button close-icon" id="close-sidebar" aria-label="Close menu">×</button>
@@ -51,32 +58,97 @@
   <main id="main">
     <section class="screen landing-screen" id="landing-screen" aria-labelledby="landing-title">
       <div class="landing-hero">
-        <p class="eyebrow">Civic Breadcrumbs</p>
-        <h1 id="landing-title">Don't make me start over.</h1>
-        <p class="lede">Public-service journeys get scattered across websites, emails, and phone calls. brdcrmbs keeps a structured record of what happened, where you left off, and what to do next — so you never have to re-explain your situation from scratch.</p>
+        <p class="pill">Your goal. Your next step.</p>
+        <h1 id="landing-title">A clearer path through <span class="accent">public-service paperwork.</span></h1>
+        <p class="lede">Turn scattered steps, emails, and phone calls into one guide you can follow, with help whenever you get stuck.</p>
         <div class="landing-actions">
-          <button class="button primary" id="landing-start">Start your journey <span aria-hidden="true">→</span></button>
-          <button class="button secondary" id="landing-signin">Sign in with Google</button>
+          <button class="button primary" id="landing-start">Start my guide <span aria-hidden="true">→</span></button>
+          <a class="button secondary" href="#guide-preview" id="landing-example">See an example</a>
+        </div>
+        <p class="landing-caption">Built for HackTheHill 2026.</p>
+      </div>
+
+      <div class="landing-preview" id="guide-preview">
+        <div class="landing-preview-head">
+          <p class="eyebrow">Your guide, at a glance</p>
+          <span class="tag">Illustrative example</span>
+        </div>
+        <div class="landing-preview-body">
+          <div class="landing-preview-goal">
+            <p class="eyebrow">Your goal</p>
+            <h3>Passport renewal</h3>
+            <p>A clear plan, one step at a time.</p>
+            <img src="{% static 'demo/img/favicon.png' %}" alt="" aria-hidden="true" class="landing-preview-mark">
+          </div>
+          <ol class="guide-step-list landing-preview-steps">
+            <li class="guide-step">
+              <span class="step-orb">01</span>
+              <div class="guide-step-copy"><strong>Find your application form</strong></div>
+              <span class="guide-step-status IN_PROGRESS">In progress</span>
+              <span aria-hidden="true">›</span>
+            </li>
+            <li class="guide-step">
+              <span class="step-orb">02</span>
+              <div class="guide-step-copy"><strong>Prepare your documents</strong></div>
+              <span class="guide-step-status"></span>
+              <span aria-hidden="true">›</span>
+            </li>
+            <li class="guide-step">
+              <span class="step-orb">03</span>
+              <div class="guide-step-copy"><strong>Complete your application</strong></div>
+              <span class="guide-step-status"></span>
+              <span aria-hidden="true">›</span>
+            </li>
+            <li class="guide-step">
+              <span class="step-orb">04</span>
+              <div class="guide-step-copy"><strong>Submit and track</strong></div>
+              <span class="guide-step-status"></span>
+              <span aria-hidden="true">›</span>
+            </li>
+          </ol>
+        </div>
+        <p class="landing-preview-help"><span aria-hidden="true">?</span> Stuck on a step? Help is right here.</p>
+      </div>
+
+      <div class="landing-features" id="why-brdcrmbs">
+        <div class="landing-feature">
+          <span class="icon-badge" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v4h4"/><path d="M9 13h6M9 17h6"/></svg></span>
+          <div><strong>Official source links</strong><p>Information from government websites, in one place.</p></div>
+        </div>
+        <div class="landing-feature">
+          <span class="icon-badge" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m4 6 2 2 3-3M4 13l2 2 3-3M4 20l2 2 3-3"/><path d="M12 6h8M12 13h8M12 20h8"/></svg></span>
+          <div><strong>Progress you can follow</strong><p>A clear, step-by-step guide for your situation.</p></div>
+        </div>
+        <div class="landing-feature">
+          <span class="icon-badge" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/></svg></span>
+          <div><strong>Help along the way</strong><p>Understand what to do next, in plain language.</p></div>
         </div>
       </div>
 
-      <div class="landing-steps">
-        <div class="landing-step">
-          <span class="question-orb" aria-hidden="true">+</span>
-          <div><strong>Record what happened</strong><p>Describe a call, an email, or a form you submitted in your own words. We structure it; you confirm it before it's saved.</p></div>
+      <div class="landing-howitworks" id="how-it-works">
+        <h2>From "Where do I start?" <span class="accent">to "I know what's next."</span></h2>
+        <div class="landing-steps">
+          <div class="landing-step">
+            <span class="step-orb">1</span>
+            <div><strong>Describe your goal</strong><p>Tell us what you need to do.</p></div>
+          </div>
+          <div class="landing-step">
+            <span class="step-orb">2</span>
+            <div><strong>Confirm the details</strong><p>Make sure we understand your situation.</p></div>
+          </div>
+          <div class="landing-step">
+            <span class="step-orb">3</span>
+            <div><strong>Follow your steps</strong><p>Work through your guide at your own pace.</p></div>
+          </div>
         </div>
-        <div class="landing-step">
-          <span class="question-orb" aria-hidden="true">→</span>
-          <div><strong>See where you left off</strong><p>Your current state and next recorded action, derived only from what you've confirmed — never guessed.</p></div>
+      </div>
+
+      <div class="landing-closing">
+        <div>
+          <h2>We've thought about the same questions.</h2>
+          <p>brdcrmbs exists because navigating unfamiliar procedures shouldn't mean starting over every time.</p>
         </div>
-        <div class="landing-step">
-          <span class="question-orb" aria-hidden="true">?</span>
-          <div><strong>Get unstuck</strong><p>A bounded summary of what's known, what's unresolved, and who's responsible — not an open-ended chatbot.</p></div>
-        </div>
-        <div class="landing-step">
-          <span class="question-orb" aria-hidden="true">✓</span>
-          <div><strong>Hand it off</strong><p>Generate a clear case summary so a caseworker, advisor, or family member can pick up exactly where you are.</p></div>
-        </div>
+        <button class="button primary" id="landing-closing-cta">Find my first step <span aria-hidden="true">→</span></button>
       </div>
 
       <p class="privacy-note">Independent guidance, not a government service. It can't make decisions, access government case files, or submit applications on your behalf.</p>
@@ -189,7 +261,12 @@
     </section>
   </main>
 
-  <footer>Illustrative process <span>•</span> Independent guidance</footer>
+  <footer>
+    <img src="{% static 'demo/img/favicon.png' %}" alt="" aria-hidden="true">
+    <span>brdcrmbs</span>
+    <span aria-hidden="true">•</span>
+    <span>Independent guidance. Not a government service.</span>
+  </footer>
 
   <div class="modal-shell" id="goal-confirm-modal" hidden>
     <div class="modal-backdrop" data-close="goal-confirm-modal"></div>
@@ -298,7 +375,7 @@
     <section class="modal compact-modal" role="dialog" aria-modal="true" aria-labelledby="account-title">
       <button class="modal-close" data-close="account-modal" aria-label="Close">×</button>
       <p class="eyebrow">Save your work</p><h2 id="account-title">Sign in with Google</h2>
-      <p>Your guest Journey is temporary. Auth0 securely handles Google sign-in; Civic Breadcrumbs keeps control of your Journey.</p>
+      <p>Your guest Journey is temporary. Auth0 securely handles Google sign-in; brdcrmbs keeps control of your Journey.</p>
       <button class="button primary full" id="auth-login">Sign in with Google <span aria-hidden="true">→</span></button>
     </section>
   </div>

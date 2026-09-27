@@ -1,6 +1,6 @@
 :root {
   --ink: #071826;
-  --muted: #5f7084;
+  --muted: #526475;
   --line: #cdd8dd;
   --soft-line: #e4ebed;
   --paper: #ffffff;
@@ -22,6 +22,7 @@ body { min-height: 100vh; margin: 0; background: radial-gradient(circle at 50% 2
 button, input, textarea, select { font: inherit; }
 button { color: inherit; }
 [hidden] { display: none !important; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
 
 .skip-link { position: fixed; top: -60px; left: 16px; z-index: 200; background: var(--ink); color: #fff; padding: 10px 14px; border-radius: 6px; }
 .skip-link:focus { top: 12px; }
@@ -36,6 +37,13 @@ button { color: inherit; }
 .menu-button span { display: block; height: 2px; width: 28px; border-radius: 2px; background: var(--ink); }
 .profile-button { width: 48px; height: 48px; border-radius: 50%; background: #edf2f3; display: grid; place-items: center; }
 .profile-button svg { width: 27px; height: 27px; fill: #6a7a84; }
+
+.landing-nav { display: flex; align-items: center; gap: 30px; margin-left: 46px; }
+.landing-nav a { color: var(--ink); font-weight: 650; text-decoration: none; }
+.landing-nav a:hover { color: var(--teal-dark); }
+.text-link { border: 0; background: none; cursor: pointer; font-weight: 700; color: var(--ink); padding: 8px 4px; }
+.text-link:hover { color: var(--teal-dark); }
+.button.compact { min-height: 42px; padding: 9px 18px; }
 
 main { min-height: calc(100vh - 132px); }
 .screen { width: min(1080px, calc(100% - 40px)); margin: 0 auto; padding: 42px 0 70px; }
@@ -66,11 +74,44 @@ textarea { min-height: 150px; resize: vertical; line-height: 1.5; }
 .landing-screen { padding-top: 70px; }
 .landing-hero { max-width: 720px; margin: 0 auto; text-align: center; }
 .landing-hero .lede { margin-bottom: 0; }
+.landing-hero .accent, .landing-howitworks .accent { color: var(--teal-dark); }
+.pill { display: inline-block; background: var(--mint); color: var(--teal-dark); border-radius: 999px; padding: 7px 16px; font-size: .78rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 18px; }
 .landing-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 14px; margin-top: 30px; }
-.landing-steps { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin: 60px 0 44px; }
+.landing-caption { color: var(--muted); font-size: .88rem; margin-top: 18px; }
+
+#how-it-works, #why-brdcrmbs, #guide-preview { scroll-margin-top: 100px; }
+
+.landing-preview { border: 1px solid var(--line); background: rgba(255,255,255,.9); border-radius: 16px; padding: 26px; margin: 64px 0; box-shadow: var(--shadow); }
+.landing-preview-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.landing-preview-head .eyebrow { margin: 0; }
+.tag { background: var(--mint); color: var(--teal-dark); border-radius: 999px; padding: 5px 12px; font-size: .78rem; font-weight: 700; white-space: nowrap; }
+.landing-preview-body { display: grid; grid-template-columns: 260px 1fr; gap: 22px; }
+.landing-preview-goal { background: var(--mint-soft); border-radius: 13px; padding: 22px; position: relative; overflow: hidden; min-height: 200px; }
+.landing-preview-goal h3 { margin: 4px 0 6px; font-size: 1.5rem; }
+.landing-preview-goal p { color: var(--muted); margin: 0; }
+.landing-preview-mark { width: 68px; height: auto; opacity: .92; position: absolute; right: 18px; bottom: 18px; }
+.landing-preview-steps { gap: 10px; }
+.landing-preview-steps .guide-step { cursor: default; min-height: 62px; padding: 10px 16px; }
+.landing-preview-help { margin: 18px 0 0; color: var(--muted); font-size: .9rem; display: flex; align-items: center; gap: 8px; }
+
+.landing-features { background: var(--mint-soft); border-radius: 16px; padding: 32px 28px; margin: 56px 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+.landing-feature { display: flex; gap: 14px; align-items: flex-start; }
+.landing-feature strong { display: block; margin-bottom: 4px; }
+.landing-feature p { margin: 0; color: var(--muted); font-size: .92rem; }
+.icon-badge { flex: 0 0 auto; width: 44px; height: 44px; border-radius: 12px; background: #fff; display: grid; place-items: center; box-shadow: 0 4px 10px rgba(9,33,43,.06); }
+.icon-badge svg { width: 22px; height: 22px; color: var(--teal-dark); }
+
+.landing-howitworks { margin: 64px 0 44px; }
+.landing-howitworks h2 { max-width: 620px; margin-bottom: 30px; }
+.landing-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
 .landing-step { display: flex; align-items: flex-start; gap: 18px; border: 1px solid var(--line); background: rgba(255,255,255,.82); border-radius: 14px; padding: 24px; }
 .landing-step strong { display: block; font-size: 1.08rem; margin-bottom: 6px; }
 .landing-step p { margin: 0; color: var(--muted); }
+
+.landing-closing { background: var(--mint-soft); border-radius: 16px; padding: 34px 32px; margin: 0 0 50px; display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+.landing-closing h2 { margin-bottom: 8px; font-size: clamp(1.4rem, 2.6vw, 1.9rem); }
+.landing-closing p { color: var(--muted); margin: 0; max-width: 480px; }
+
 .landing-screen .privacy-note { max-width: 640px; margin-left: auto; margin-right: auto; }
 
 .breadcrumbs { display: flex; align-items: center; gap: 15px; color: var(--muted); margin-bottom: 28px; }
@@ -100,6 +141,7 @@ textarea { min-height: 150px; resize: vertical; line-height: 1.5; }
 .guide-step-status { border-radius: 999px; padding: 7px 12px; font-size: .82rem; font-weight: 750; background: #edf2f3; color: #526475; white-space: nowrap; }
 .guide-step-status.IN_PROGRESS { background: #dff6f7; color: #08727a; }
 .guide-step-status.COMPLETED { background: var(--mint); color: var(--teal-dark); }
+.guide-step-status:empty { background: none; padding: 0; }
 .state-card { margin-top: 18px; border-left: 5px solid var(--teal); }
 .state-card h2 { font-size: 1.55rem; margin: 8px 0 24px; max-width: 900px; }
 .state-topline { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
@@ -209,13 +251,24 @@ textarea { min-height: 150px; resize: vertical; line-height: 1.5; }
 
 .toast { position: fixed; right: 26px; bottom: 26px; z-index: 220; max-width: 430px; border-radius: 10px; background: #092f2c; color: #fff; padding: 14px 18px; box-shadow: var(--shadow); }
 footer { min-height: 50px; border-top: 1px solid var(--soft-line); display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--muted); font-size: .82rem; background: rgba(255,255,255,.64); }
+footer img { height: 18px; width: auto; }
+footer span:nth-child(2) { color: var(--ink); font-weight: 750; }
 
 @media (max-width: 1120px) { .create-action { position: static; margin-top: 22px; flex-direction: row-reverse; justify-content: flex-end; gap: 12px; } .round-arrow { width: 52px; height: 52px; } }
+@media (max-width: 980px) {
+  .landing-nav { gap: 18px; margin-left: 24px; }
+  .landing-features, .landing-steps { grid-template-columns: repeat(2, 1fr); }
+  .landing-preview-body { grid-template-columns: 200px 1fr; gap: 16px; }
+}
 @media (max-width: 760px) {
   .app-header { height: 68px; padding: 0 16px; } .brand { margin-left: 10px; } .brand img { height: 32px; } .header-actions { gap: 10px; }
+  .landing-nav { display: none; } .text-link { display: none; } .button.compact { padding: 8px 14px; font-size: .92rem; }
   .screen { width: min(100% - 24px, 1080px); padding-top: 24px; } .create-screen { padding-top: 42px; } .landing-screen { padding-top: 24px; }
-  .landing-steps { grid-template-columns: 1fr; }
+  .landing-steps, .landing-features { grid-template-columns: 1fr; }
   .landing-actions .button { width: 100%; }
+  .landing-preview { padding: 20px; margin: 44px 0; } .landing-preview-body { grid-template-columns: 1fr; }
+  .landing-preview-mark { display: none; }
+  .landing-closing { padding: 26px 22px; } .landing-closing .button { width: 100%; }
   .goal-form { margin-top: 38px; } .goal-card { display: block; padding: 24px 20px; } .goal-card .button { margin-top: 18px; }
   .guide-heading-row { grid-template-columns: 1fr; gap: 18px; } .guide-progress-copy { text-align: left; }
   .guide-step { grid-template-columns: 44px 1fr 18px; gap: 11px; padding: 13px; } .guide-step-status { display: none; } .guide-step-copy p { font-size: .9rem; }

@@ -123,15 +123,20 @@
   }
 
   function showScreen(name) {
-    $("landing-screen").hidden = name !== "landing";
+    const landing = name === "landing";
+    $("landing-screen").hidden = !landing;
     $("create-screen").hidden = name !== "create";
     $("journey-screen").hidden = name !== "journey";
     $("completion-screen").hidden = name !== "completion";
+    $("landing-nav").hidden = !landing;
+    $("landing-nav-start").hidden = !landing;
+    $("landing-nav-signin").hidden = !landing || state.authMode !== "guest";
+    $("menu-button").hidden = landing;
+    $("profile-button").hidden = landing;
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function showLanding() {
-    $("landing-signin").hidden = state.authMode !== "guest";
     showScreen("landing");
   }
 
@@ -687,7 +692,9 @@
     $("sidebar-scrim").addEventListener("click", closeSidebar);
     $("home-button").addEventListener("click", () => state.current ? showScreen("journey") : showLanding());
     $("landing-start").addEventListener("click", startNewGoal);
-    $("landing-signin").addEventListener("click", showAccount);
+    $("landing-nav-start").addEventListener("click", startNewGoal);
+    $("landing-nav-signin").addEventListener("click", showAccount);
+    $("landing-closing-cta").addEventListener("click", startNewGoal);
     $("crumb-home").addEventListener("click", openSidebar);
     $("sidebar-new").addEventListener("click", startNewGoal);
     $("completion-new").addEventListener("click", startNewGoal);

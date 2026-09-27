@@ -56,6 +56,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -108,6 +109,13 @@ LANGUAGE_CODE = "en-ca"
 TIME_ZONE = "America/Toronto"
 USE_I18N = True
 USE_TZ = True
+
+# Only English and French are curated (CLAUDE.md's "small, reliable vertical
+# slice" -- no auto-added locales). LocaleMiddleware resolves the active
+# language from the django_language cookie set by common.api.SetLanguageView;
+# it falls back to LANGUAGE_CODE when no cookie is present.
+LANGUAGES = [("en", "English"), ("fr", "Français")]
+LOCALE_PATHS = [BASE_DIR / "locale"]
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
