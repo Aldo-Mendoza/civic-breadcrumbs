@@ -323,10 +323,19 @@
 
   async function selectJourney(id, forceJourneyScreen) {
     state.current = await api("/journeys/" + id + "/");
-    renderJourney();
-    renderSidebar();
+    // Switch screens before the detail rendering below, and unconditionally --
+    // otherwise an exception thrown while rendering one journey's details
+    // (e.g. an unexpected data shape) leaves whatever screen was visible
+    // before this call (such as the new-goal form) stuck on screen with no
+    // indication anything went wrong, until a manual refresh.
     if (!forceJourneyScreen && state.current.state.status === "COMPLETED") renderCompletion();
     else showScreen("journey");
+    try {
+      renderJourney();
+      renderSidebar();
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   function renderJourney() {

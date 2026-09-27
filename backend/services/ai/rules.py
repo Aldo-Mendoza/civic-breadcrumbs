@@ -321,6 +321,38 @@ _INSTRUCTION_MARKERS = (
     "they need",
 )
 
+#: Checked before any kind/organization/status detection runs. Without this,
+#: a hypothetical or explicitly-negated sentence ("if they ask...", "I have
+#: not submitted...") gets read the same as a plain factual report, because
+#: the cue tables below match on bare substrings like "submitted" or "ask"
+#: with no awareness of negation -- turning a citizen's caveat into a
+#: fabricated event. Deliberately narrow and literal (a false miss just
+#: means normal extraction proceeds; a false hit only costs one review step).
+_HYPOTHETICAL_MARKERS = (
+    "if they ask", "if he asks", "if she asks", "if asked",
+    "in case they ask", "in case i'm asked", "in case i am asked",
+    "nobody asked", "no one asked", "no one has asked",
+    "have not submitted", "haven't submitted", "has not submitted", "hasn't submitted",
+    "did not submit", "didn't submit",
+    "have not called", "haven't called", "have not applied", "haven't applied",
+    "have not sent", "haven't sent", "have not contacted", "haven't contacted",
+    "i have not", "i haven't", "i've not",
+)
+_HYPOTHETICAL_MARKERS_FR = (
+    "s'ils demandent", "s'il demande", "si on me demande", "au cas où on demande",
+    "personne n'a demandé", "personne ne m'a demandé",
+    "je n'ai pas soumis", "je n'ai pas encore soumis", "je n'ai pas déposé",
+    "je n'ai pas appelé", "je n'ai pas encore appelé",
+    "je n'ai pas envoyé", "je n'ai rien envoyé", "je n'ai rien soumis",
+    "je n'ai pas contacté", "je n'ai pas encore contacté",
+)
+
+
+def _is_hypothetical_or_negated(lowered):
+    markers = _HYPOTHETICAL_MARKERS_FR if _is_french() else _HYPOTHETICAL_MARKERS
+    return any(marker in lowered for marker in markers)
+
+
 _KIND_ACTION_CUES = ("submitted", "applied", "filed", "paid", "sent in", "renewed")
 _KIND_DOCUMENT_CUES = ("uploaded", "attached", "document", "letter", "form", "receipt")
 _KIND_SOURCE_CUES = ("website says", "site says", "according to", "the page says",
@@ -871,6 +903,37 @@ class RuleBasedAIService:
         lowered = text.lower()
         context = minimal_context or {}
         today = self._now()
+
+        if _is_hypothetical_or_negated(lowered):
+            # Preserve the citizen's words as a note rather than let cue
+            # matching turn a hypothetical or an explicit "I have not done
+            # this yet" into a claim that an interaction or action happened.
+            french = _is_french()
+            return BreadcrumbDraft(
+                kind=enums.BreadcrumbKind.NOTE,
+                channel=enums.Channel.UNKNOWN,
+                title=_build_title(text, enums.BreadcrumbKind.NOTE, enums.Channel.UNKNOWN, ""),
+                organization="",
+                occurred_on=today,
+                reported_status=enums.ReportedStatus.UNKNOWN,
+                instruction="",
+                suggested_next_action=enums.NextActionCode.NONE,
+                reference="",
+                confidence=0.3,
+                needs_clarification=True,
+                clarification_question=(
+                    "S'agit-il de quelque chose qui s'est déjà produit, ou d'une "
+                    "possibilité que vous décrivez?"
+                    if french
+                    else "Is this something that already happened, or a possibility you're describing?"
+                ),
+                paraphrase=(
+                    "Entendu — enregistré comme note pour l'instant."
+                    if french
+                    else "Got it — saved as a note for now."
+                ),
+                extractor=self.name,
+            )
 
         channel, _ = _first_cue(lowered, _channel_cues())
         channel = channel or enums.Channel.UNKNOWN

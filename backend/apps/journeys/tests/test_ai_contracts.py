@@ -362,6 +362,27 @@ class RuleExtractionTests(TestCase):
         )
         self.assertEqual(draft.organization, "")
 
+    def test_a_hypothetical_or_negated_report_is_saved_as_a_note_not_an_event(self):
+        """
+        Regression test for a live bug: cue matching has no concept of
+        negation, so "I have not submitted..." matched the "submitted" cue
+        the same as an actual submission, and "if they ask" wrongly implied
+        an interaction happened. Preserve the citizen's words as a note
+        instead of fabricating an event, organization, or status.
+        """
+        for text in (
+            "If they ask, I have not submitted my application to Service "
+            "Canada yet.",
+            "Nobody asked me for anything from Service Canada.",
+            "I have not submitted my application yet.",
+        ):
+            with self.subTest(text=text):
+                draft = self.extract(text)
+                self.assertEqual(draft.kind, enums.BreadcrumbKind.NOTE)
+                self.assertEqual(draft.organization, "")
+                self.assertEqual(draft.reported_status, enums.ReportedStatus.UNKNOWN)
+                self.assertEqual(draft.instruction, "")
+
     def test_a_labelled_reference_number_is_captured(self):
         draft = self.extract(
             "I called IRCC today, my application number is DEMO-4417829."
