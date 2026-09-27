@@ -37,6 +37,7 @@ import json
 import logging
 
 from django.conf import settings
+from django.utils.translation import gettext as _
 
 from common.exceptions import AIInvalidOutput, AIUnavailable
 
@@ -72,11 +73,11 @@ class GeminiAIService:
         if self._client is not None:
             return self._client
         if not self._api_key:
-            raise AIUnavailable("No AI key is configured.")
+            raise AIUnavailable(_("No AI key is configured."))
         try:
             from google import genai
         except ImportError as exc:
-            raise AIUnavailable("The AI client library is not installed.") from exc
+            raise AIUnavailable(_("The AI client library is not installed.")) from exc
         self._client = genai.Client(api_key=self._api_key)
         return self._client
 
@@ -154,18 +155,18 @@ class GeminiAIService:
                 )
                 break
 
-        raise AIUnavailable("The AI service did not respond in time.") from last_error
+        raise AIUnavailable(_("The AI service did not respond in time.")) from last_error
 
     def _parse(self, response):
         text = getattr(response, "text", None)
         if not text:
-            raise AIInvalidOutput("The AI service returned an empty response.")
+            raise AIInvalidOutput(_("The AI service returned an empty response."))
         try:
             payload = json.loads(text)
         except (TypeError, ValueError) as exc:
-            raise AIInvalidOutput("The AI service returned unreadable output.") from exc
+            raise AIInvalidOutput(_("The AI service returned unreadable output.")) from exc
         if not isinstance(payload, dict):
-            raise AIInvalidOutput("The AI service returned an unexpected shape.")
+            raise AIInvalidOutput(_("The AI service returned an unexpected shape."))
         return payload
 
     # -- contract ----------------------------------------------------------
@@ -179,7 +180,7 @@ class GeminiAIService:
         try:
             draft = JourneyDraft(**payload)
         except Exception as exc:
-            raise AIInvalidOutput("The AI service returned invalid fields.") from exc
+            raise AIInvalidOutput(_("The AI service returned invalid fields.")) from exc
         return draft.model_copy(update={"extractor": self.name})
 
     def extract_breadcrumb(self, user_text, minimal_context):
@@ -196,7 +197,7 @@ class GeminiAIService:
         try:
             draft = BreadcrumbDraft(**payload)
         except Exception as exc:
-            raise AIInvalidOutput("The AI service returned invalid fields.") from exc
+            raise AIInvalidOutput(_("The AI service returned invalid fields.")) from exc
 
         organization = self._restrict_organization(draft.organization, minimal_context)
         return draft.model_copy(

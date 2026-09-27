@@ -2,6 +2,10 @@
 import re
 import unicodedata
 
+from django.utils import formats
+from django.utils.translation import get_language
+from django.utils.translation import gettext as _
+
 _WHITESPACE = re.compile(r"\s+")
 _PUNCTUATION = re.compile(r"[^\w\s]")
 
@@ -32,15 +36,20 @@ def truncate(value, limit):
 
 def format_day(value):
     """
-    Render a date the way a person says it: "September 24, 2026".
+    Render a date the way a person says it: "September 24, 2026" in English,
+    "24 septembre 2026" in French.
 
-    Built without platform-specific strftime padding flags so it behaves
-    identically on Windows and Linux.
+    English is built without platform-specific strftime padding flags so it
+    behaves identically on Windows and Linux. French goes through Django's
+    own date_format(), which already ships correct French month names and
+    word order -- no need to reinvent either here.
     """
     if value is None:
-        return "an unrecorded date"
+        return _("an unrecorded date")
     if not hasattr(value, "strftime"):
         return str(value)
+    if (get_language() or "en").startswith("fr"):
+        return formats.date_format(value, "j F Y")
     return "{month} {day}, {year}".format(
         month=value.strftime("%B"), day=value.day, year=value.year
     )

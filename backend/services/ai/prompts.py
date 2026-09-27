@@ -13,6 +13,7 @@ Every prompt here follows the same discipline:
 The prompt is a cost and quality measure, not a security boundary. Backend
 schema validation runs regardless of how well the prompt performs (§16).
 """
+from django.utils.translation import get_language
 
 _ROLE_GUARD = """You are a structured-extraction component inside a civic
 records application. You have exactly one job: convert a description of
@@ -35,6 +36,53 @@ Rules you must follow:
   guessing.
 - You are not giving legal or immigration advice and must not imply any
   official decision or status."""
+
+
+def _is_french():
+    return (get_language() or "en").startswith("fr")
+
+
+def _language_instruction():
+    """
+    Tells Gemini which language its free-text fields must come back in.
+
+    The active language comes from django.utils.translation.get_language(),
+    which LocaleMiddleware activates per-request from the django_language
+    cookie (common.api.SetLanguageView) -- the same signal that drives the
+    frontend's own translations and the deterministic backend text, so all
+    three stay in the language the citizen actually chose.
+    """
+    if _is_french():
+        return (
+            "Respond in French (Canadian French). Every natural-language field "
+            "you produce (title, description, summary, instruction, paraphrase, "
+            "clarification_question, goal, guide_summary) must be written in "
+            "French. Fields that are fixed machine codes per the schema (kind, "
+            "channel, reported_status, suggested_next_action) are not natural "
+            "language -- keep them exactly as the fixed English values listed "
+            "in the schema, never translated."
+        )
+    return "Respond in English. Every natural-language field you produce must be written in English."
+
+
+def _paraphrase_instruction():
+    if _is_french():
+        example = (
+            "Entendu — vous avez appelé IRCC et on vous a dit que votre "
+            "demande est toujours en traitement."
+        )
+        prefix = "Entendu — "
+    else:
+        example = "Got it — you called IRCC and they said your application is still processing."
+        prefix = "Got it — "
+    return (
+        "Always fill the paraphrase field with exactly one short, plain "
+        'sentence in second person, starting with "' + prefix + '", that '
+        "restates only what the other fields above already capture (for "
+        'example: "' + example + '"). Do not add any fact, timeline, outcome, '
+        "eligibility statement or prediction that is not already reflected in "
+        "the other fields you produced."
+    )
 
 
 def _fence(text):
@@ -63,6 +111,7 @@ def breadcrumb_prompt(user_text, minimal_context):
     return "\n\n".join(
         [
             _ROLE_GUARD,
+            _language_instruction(),
             "Journey title: " + str(context.get("journey_title", "")),
             "Journey goal: " + str(context.get("journey_goal", "")),
             "Current known state: " + str(context.get("current_state", "")),
@@ -80,16 +129,9 @@ def breadcrumb_prompt(user_text, minimal_context):
             (
                 "Extract the event into the schema. Set needs_clarification to "
                 "true and supply one short clarification_question only if a "
-                "load-bearing detail is genuinely missing. Always fill the "
-                "paraphrase field with exactly one short, plain-English "
-                "sentence in second person, starting with \"Got it — \", "
-                "that restates only what the other fields above already "
-                "capture (for example: \"Got it — you called IRCC and "
-                "they said your application is still processing.\"). Do not "
-                "add any fact, timeline, outcome, eligibility statement or "
-                "prediction that is not already reflected in the other "
-                "fields you produced."
+                "load-bearing detail is genuinely missing."
             ),
+            _paraphrase_instruction(),
         ]
     )
 
@@ -106,6 +148,7 @@ def journey_prompt(user_text, source_context=None):
     return "\n\n".join(
         [
             _ROLE_GUARD,
+            _language_instruction(),
             _fence(user_text),
             (
                 "APPROVED OFFICIAL SOURCE SECTIONS:\n" + sources
@@ -129,9 +172,11 @@ def journey_prompt(user_text, source_context=None):
                 "the relevant official service. For every step, also set topic to "
                 "a short 2-4 word phrase naming what that step is about (for "
                 "example \"required documents\", \"eligibility\", \"submission "
-                "channel\", \"processing times\"). This is only used afterwards to "
-                "look up a matching link in an already-curated, human-verified "
-                "directory of official government pages -- it is not a URL, form "
+                "channel\", \"processing times\"). Always write topic in English, "
+                "even when everything else must be in French -- it is only used "
+                "internally afterwards to look up a matching link in an "
+                "already-curated, human-verified directory of official government "
+                "pages, is never shown to the citizen, and is not a URL, form "
                 "name, or fact, so it never needs verification itself; leave it "
                 "blank rather than guess if nothing fits. Also return source_ids "
                 "with at most the single best SOURCE SECTION ID supplied above that directly "
@@ -164,6 +209,7 @@ def stuck_prose_prompt(journey_snapshot):
     return "\n\n".join(
         [
             _ROLE_GUARD,
+            _language_instruction(),
             "Here is a factual summary already assembled from confirmed records:",
             _fence((journey_snapshot or {}).get("summary", "")),
             (
@@ -183,6 +229,7 @@ def handoff_prose_prompt(journey_snapshot):
     return "\n\n".join(
         [
             _ROLE_GUARD,
+            _language_instruction(),
             "Here is a case summary already assembled from confirmed records:",
             _fence((journey_snapshot or {}).get("summary", "")),
             (

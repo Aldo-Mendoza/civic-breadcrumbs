@@ -123,3 +123,55 @@ class OfficialSourceValidationTests(TestCase):
     def test_jurisdiction_choices_allow_federal_and_provincial(self):
         self.assertIn(Jurisdiction.FEDERAL, dict(Jurisdiction.choices))
         self.assertIn(Jurisdiction.PROVINCIAL, dict(Jurisdiction.choices))
+
+
+class FrenchLocalizationTests(TestCase):
+    """
+    French localization, Phase D: every url_fr in the curated seed must be a
+    verified government domain link (same rule as url, never a guessed one),
+    and localized_* must actually switch on the active locale.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        seed_directory()
+
+    def test_every_seeded_url_fr_passes_the_government_domain_rule(self):
+        sources_with_french = OfficialSource.objects.exclude(url_fr="")
+        self.assertGreater(sources_with_french.count(), 0)
+        for source in sources_with_french:
+            with self.subTest(source=source.title):
+                source.full_clean()
+
+    def test_organization_localized_fields_switch_on_locale(self):
+        from django.utils import translation
+
+        ircc = Organization.objects.get(short_name="IRCC")
+        with translation.override("en"):
+            self.assertEqual(ircc.localized_official_url, ircc.official_url)
+        with translation.override("fr"):
+            self.assertEqual(ircc.localized_official_url, ircc.official_url_fr)
+            self.assertNotEqual(ircc.official_url_fr, "")
+
+    def test_official_source_localized_fields_switch_on_locale(self):
+        from django.utils import translation
+
+        source = OfficialSource.objects.exclude(url_fr="").first()
+        with translation.override("en"):
+            self.assertEqual(source.localized_url, source.url)
+            self.assertEqual(source.localized_title, source.title)
+        with translation.override("fr"):
+            self.assertEqual(source.localized_url, source.url_fr)
+            self.assertEqual(source.localized_title, source.title_fr)
+
+    def test_missing_french_falls_back_to_english_rather_than_guessing(self):
+        """University International Office has no verified official_url_fr
+        (CLAUDE.md §21: never invent an official link) -- localized_official_url
+        must fall back to English, not return a blank or fabricated URL."""
+        from django.utils import translation
+
+        university = Organization.objects.get(short_name="International Office")
+        self.assertEqual(university.official_url_fr, "")
+        with translation.override("fr"):
+            self.assertEqual(university.localized_official_url, university.official_url)
+            self.assertTrue(university.localized_official_url)

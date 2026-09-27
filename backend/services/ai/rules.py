@@ -24,14 +24,176 @@ extractor safe to rely on.
 import re
 from datetime import date, timedelta
 
+from django.utils.translation import get_language
+
 from apps.journeys import enums
 
 from .schemas import BreadcrumbDraft, GuideStepDraft, JourneyDraft, ProseSummary
 from .schemas import clarification_for as _clarification_for
 
+
+def _is_french():
+    return (get_language() or "en").startswith("fr")
+
+
 # ---------------------------------------------------------------------------
 # Cue tables. Ordered most-specific first where order matters.
+#
+# French localization, Phase E: this is the guaranteed-availability engine
+# (runs whenever Gemini is down, rate-limited, or AI_ENABLED=false), so it
+# must understand French input and produce French output just as reliably as
+# English -- a citizen should never see a worse, English-biased experience
+# here just because Gemini happened to be unavailable at that moment.
 # ---------------------------------------------------------------------------
+
+_CHANNEL_CUES_FR = (
+    (enums.Channel.PHONE, (
+        "appelé", "téléphoné", "au téléphone", "par téléphone",
+        "appel téléphonique", "raccroché", "en attente", "centre d'appel",
+    )),
+    (enums.Channel.EMAIL, (
+        "envoyé un courriel", "par courriel", "courriel de", "courriel disait",
+        "répondu par courriel", "courriel indique",
+    )),
+    (enums.Channel.IN_PERSON, (
+        "suis allé", "visité", "en personne", "au bureau", "centre de service",
+        "comptoir", "rendez-vous à", "déposé en personne",
+    )),
+    (enums.Channel.LETTER, (
+        "lettre", "par la poste", "dans le courrier", "enveloppe", "posté",
+    )),
+    (enums.Channel.UPLOAD, (
+        "téléversé", "joint", "soumis en ligne", "téléversement",
+    )),
+    (enums.Channel.WEB, (
+        "site web", "portail", "compte en ligne", "en ligne", "le site",
+        "page web", "mon compte",
+    )),
+)
+
+_STATUS_CUES_FR = (
+    (enums.ReportedStatus.PROCESSING, (
+        "toujours en traitement", "en cours de traitement", "en traitement",
+        "en cours",
+    )),
+    (enums.ReportedStatus.UNDER_REVIEW, (
+        "en révision", "en cours de révision", "en évaluation",
+    )),
+    (enums.ReportedStatus.ADDITIONAL_INFO_REQUIRED, (
+        "besoin de plus de renseignements", "renseignements supplémentaires",
+        "document supplémentaire", "informations supplémentaires",
+        "autre document", "demandé plus",
+    )),
+    (enums.ReportedStatus.INCOMPLETE, (
+        "incomplète", "incomplet", "manquant", "n'était pas complète",
+    )),
+    (enums.ReportedStatus.APPROVED, (
+        "approuvée", "approuvé", "accordée", "acceptée", "délivré",
+    )),
+    (enums.ReportedStatus.REFUSED, (
+        "refusée", "refusé", "rejetée", "refoulé",
+    )),
+    (enums.ReportedStatus.RESOLVED, (
+        "résolue", "résolu", "fermé", "réglé", "terminé",
+    )),
+    (enums.ReportedStatus.RECEIVED, (
+        "reçu ma demande", "ils ont reçu", "confirmation", "accusé de réception",
+        "reçu mon dossier",
+    )),
+    (enums.ReportedStatus.SUBMITTED, (
+        "soumise", "soumis", "envoyé", "déposé", "demandé",
+    )),
+)
+
+_ACTION_CUES_FR = (
+    (enums.NextActionCode.WAIT, (
+        "ne pas soumettre une autre", "ne soumettez pas une autre",
+        "ne pas réappliquer", "juste attendre", "d'attendre", "attendre",
+        "aucune action", "rien à faire", "rien de plus", "aucune autre action",
+        "soyez patient",
+    )),
+    (enums.NextActionCode.UPLOAD, (
+        "téléverser", "joindre", "envoyez-nous une copie", "envoyer une copie",
+        "numériser et envoyer",
+    )),
+    (enums.NextActionCode.PROVIDE_DOCUMENT, (
+        "fournir", "apporter", "besoin d'un autre document",
+        "besoin d'un document", "preuve de", "envoyer le document",
+        "avec une pièce d'identité",
+    )),
+    (enums.NextActionCode.VISIT, (
+        "venir", "visiter", "en personne", "prendre rendez-vous",
+        "aller au bureau",
+    )),
+    (enums.NextActionCode.CALL, (
+        "rappeler", "les rappeler", "nous appeler",
+    )),
+    (enums.NextActionCode.SUBMIT, (
+        "soumettre", "réappliquer", "redemander", "remplir le formulaire",
+        "compléter le formulaire",
+    )),
+)
+
+#: Clause markers introducing something the citizen was told to do, French.
+_INSTRUCTION_MARKERS_FR = (
+    "m'a dit de",
+    "m'a dit de ne pas",
+    "m'a dit",
+    "a dit de",
+    "a dit que je devrais",
+    "a dit que je dois",
+    "m'a demandé de",
+    "m'a conseillé de",
+    "conseillé",
+    "m'a instruit de",
+    "instruit",
+    "je dois",
+    "je devrais",
+    "il faut que je",
+    "ils veulent",
+    "ils ont besoin",
+)
+
+_KIND_ACTION_CUES_FR = ("soumis", "demandé", "déposé", "payé", "envoyé", "renouvelé")
+_KIND_DOCUMENT_CUES_FR = ("téléversé", "joint", "document", "lettre", "formulaire", "reçu")
+_KIND_SOURCE_CUES_FR = ("le site dit", "selon", "la page dit", "j'ai lu sur",
+                        "trouvé sur le site")
+_KIND_INTERACTION_CUES_FR = ("appelé", "téléphoné", "envoyé un courriel", "parlé",
+                             "visité", "suis allé", "ils ont dit", "on m'a dit",
+                             "a dit", "contacté", "rencontré")
+
+
+def _channel_cues():
+    return _CHANNEL_CUES_FR if _is_french() else _CHANNEL_CUES
+
+
+def _status_cues():
+    return _STATUS_CUES_FR if _is_french() else _STATUS_CUES
+
+
+def _action_cues():
+    return _ACTION_CUES_FR if _is_french() else _ACTION_CUES
+
+
+def _instruction_markers():
+    return _INSTRUCTION_MARKERS_FR if _is_french() else _INSTRUCTION_MARKERS
+
+
+def _kind_action_cues():
+    return _KIND_ACTION_CUES_FR if _is_french() else _KIND_ACTION_CUES
+
+
+def _kind_document_cues():
+    return _KIND_DOCUMENT_CUES_FR if _is_french() else _KIND_DOCUMENT_CUES
+
+
+def _kind_source_cues():
+    return _KIND_SOURCE_CUES_FR if _is_french() else _KIND_SOURCE_CUES
+
+
+def _kind_interaction_cues():
+    return _KIND_INTERACTION_CUES_FR if _is_french() else _KIND_INTERACTION_CUES
+
 
 _CHANNEL_CUES = (
     (enums.Channel.PHONE, (
@@ -154,10 +316,14 @@ _KIND_INTERACTION_CUES = ("called", "phoned", "emailed", "e-mailed", "spoke",
 #: A reference is only captured when the citizen labelled it as one. Scraping
 #: every long number would collect phone numbers and partial identifiers nobody
 #: asked us to store (§30, data minimization).
+#: Bilingual keyword alternation: matching either language's word is only
+#: ever safer, same reasoning as state.py's _WAIT_PHRASES (a French keyword
+#: cannot spuriously match English text or vice versa).
 _REFERENCE_RE = re.compile(
-    r"(?:reference|ref|application|file|confirmation|tracking|case)\s*"
-    r"(?:number|no\.?|#|id)?\s*"
-    r"(?:is|was|:|#|=)?\s*"
+    r"(?:reference|ref|application|file|confirmation|tracking|case"
+    r"|référence|réf|demande|dossier|confirmation|suivi|cas)\s*"
+    r"(?:number|no\.?|#|id|numéro|n[o°]\.?)?\s*"
+    r"(?:is|was|:|#|=|est|était)?\s*"
     r"([A-Za-z0-9][A-Za-z0-9-]{4,24})",
     re.IGNORECASE,
 )
@@ -167,6 +333,10 @@ _MONTHS = {
     "april": 4, "apr": 4, "may": 5, "june": 6, "jun": 6, "july": 7, "jul": 7,
     "august": 8, "aug": 8, "september": 9, "sep": 9, "sept": 9,
     "october": 10, "oct": 10, "november": 11, "nov": 11, "december": 12, "dec": 12,
+    # French month names, added unconditionally (see comment above _REFERENCE_RE).
+    "janvier": 1, "février": 2, "fevrier": 2, "mars": 3, "avril": 4,
+    "mai": 5, "juin": 6, "juillet": 7, "août": 8, "aout": 8,
+    "septembre": 9, "octobre": 10, "novembre": 11, "décembre": 12, "decembre": 12,
 }
 
 _ISO_DATE_RE = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})\b")
@@ -196,22 +366,36 @@ def _detect_date(text, today):
     """
     lowered = text.lower()
 
-    if "yesterday" in lowered:
+    # Bilingual phrase checks, added unconditionally (see the comment above
+    # _REFERENCE_RE -- matching either language's phrase is only ever safer).
+    if "yesterday" in lowered or "hier" in lowered:
         return today - timedelta(days=1)
-    if "today" in lowered or "this morning" in lowered or "this afternoon" in lowered:
+    if (
+        "today" in lowered or "this morning" in lowered or "this afternoon" in lowered
+        or "aujourd'hui" in lowered or "aujourdhui" in lowered
+        or "ce matin" in lowered or "cet après-midi" in lowered
+    ):
         return today
-    if "last week" in lowered:
+    if "last week" in lowered or "la semaine dernière" in lowered or "la semaine derniere" in lowered:
         return today - timedelta(days=7)
-    if "two weeks ago" in lowered or "2 weeks ago" in lowered:
+    if "two weeks ago" in lowered or "2 weeks ago" in lowered or "il y a deux semaines" in lowered or "il y a 2 semaines" in lowered:
         return today - timedelta(days=14)
-    if "last month" in lowered:
+    if "last month" in lowered or "le mois dernier" in lowered:
         return today - timedelta(days=30)
 
-    days_ago = re.search(r"(\d{1,3})\s+days?\s+ago", lowered)
+    # French puts the quantifier before the number ("il y a {n} jours") where
+    # English puts it after ("{n} days ago") -- two patterns, not one shared
+    # numeric capture, so an unrelated number ("3 jours de congé") can't
+    # falsely match just because "il y a" appears elsewhere in the sentence.
+    days_ago = re.search(r"(\d{1,3})\s+days?\s+ago", lowered) or re.search(
+        r"il y a\s+(\d{1,3})\s+jours?", lowered
+    )
     if days_ago:
         return today - timedelta(days=int(days_ago.group(1)))
 
-    weeks_ago = re.search(r"(\d{1,2})\s+weeks?\s+ago", lowered)
+    weeks_ago = re.search(r"(\d{1,2})\s+weeks?\s+ago", lowered) or re.search(
+        r"il y a\s+(\d{1,2})\s+semaines?", lowered
+    )
     if weeks_ago:
         return today - timedelta(weeks=int(weeks_ago.group(1)))
 
@@ -310,32 +494,41 @@ def _detect_organization(text, known_organizations):
 def _detect_instruction(text):
     """Pull out the clause describing what the citizen was told to do."""
     lowered = text.lower()
-    for marker in _INSTRUCTION_MARKERS:
+    french = _is_french()
+    for marker in _instruction_markers():
         index = lowered.find(marker)
         if index == -1:
             continue
         start = index + len(marker)
         tail = text[start:].strip(" ,:;-")
-        # Stop at a sentence boundary so we keep one instruction, not a paragraph.
-        clause = re.split(r"[.!?]|\band\s+(?:then\s+)?(?:i|they)\b", tail)[0]
+        # Stop at a sentence boundary so we keep one instruction, not a
+        # paragraph. Bilingual boundary words, added unconditionally -- see
+        # the comment above _REFERENCE_RE.
+        clause = re.split(
+            r"[.!?]|\band\s+(?:then\s+)?(?:i|they)\b|\bet\s+(?:puis\s+)?(?:je|ils)\b",
+            tail,
+        )[0]
         clause = clause.strip(" ,:;-")
         if len(clause) < 3:
             continue
-        negated = "not to" in marker or marker.endswith("not to")
-        if negated:
-            clause = "Do not " + clause
+        if french:
+            negated = "ne pas" in marker
+            clause = ("Ne pas " if negated else "") + clause
+        else:
+            negated = "not to" in marker or marker.endswith("not to")
+            clause = ("Do not " if negated else "") + clause
         return clause[:500]
     return ""
 
 
 def _detect_kind(text, channel, has_status, has_instruction):
-    if any(cue in text for cue in _KIND_SOURCE_CUES):
+    if any(cue in text for cue in _kind_source_cues()):
         return enums.BreadcrumbKind.SOURCE
-    if any(cue in text for cue in _KIND_INTERACTION_CUES):
+    if any(cue in text for cue in _kind_interaction_cues()):
         return enums.BreadcrumbKind.INTERACTION
-    if any(cue in text for cue in _KIND_ACTION_CUES):
+    if any(cue in text for cue in _kind_action_cues()):
         return enums.BreadcrumbKind.ACTION
-    if any(cue in text for cue in _KIND_DOCUMENT_CUES):
+    if any(cue in text for cue in _kind_document_cues()):
         return enums.BreadcrumbKind.DOCUMENT
     if has_status:
         return enums.BreadcrumbKind.STATUS_UPDATE
@@ -344,32 +537,44 @@ def _detect_kind(text, channel, has_status, has_instruction):
     return enums.BreadcrumbKind.NOTE
 
 
+_TITLE_VERBS_FR = {
+    enums.Channel.PHONE: "Appel à",
+    enums.Channel.EMAIL: "Courriel à",
+    enums.Channel.IN_PERSON: "Visite à",
+    enums.Channel.LETTER: "Lettre de",
+    enums.Channel.UPLOAD: "Téléversé à",
+    enums.Channel.WEB: "Vérifié en ligne avec",
+}
+
+
 def _build_title(text, kind, channel, organization):
     """A short, scannable timeline label."""
-    verb = {
+    french = _is_french()
+    verb = (_TITLE_VERBS_FR if french else {
         enums.Channel.PHONE: "Called",
         enums.Channel.EMAIL: "Emailed",
         enums.Channel.IN_PERSON: "Visited",
         enums.Channel.LETTER: "Letter from",
         enums.Channel.UPLOAD: "Uploaded to",
         enums.Channel.WEB: "Checked online with",
-    }.get(channel)
+    }).get(channel)
 
     if organization and verb:
         return "{verb} {org}".format(verb=verb, org=organization)
     if kind == enums.BreadcrumbKind.ACTION:
-        return "Application or action recorded"
+        return "Demande ou action enregistrée" if french else "Application or action recorded"
     if kind == enums.BreadcrumbKind.DOCUMENT:
-        return "Document recorded"
+        return "Document enregistré" if french else "Document recorded"
     if kind == enums.BreadcrumbKind.STATUS_UPDATE:
-        return "Status update recorded"
+        return "Mise à jour de statut enregistrée" if french else "Status update recorded"
     if organization:
-        return "Contact with {org}".format(org=organization)
+        template = "Contact avec {org}" if french else "Contact with {org}"
+        return template.format(org=organization)
 
     first_sentence = re.split(r"[.!?]", text.strip())[0].strip()
     if len(first_sentence) > 80:
         first_sentence = first_sentence[:77].rsplit(" ", 1)[0] + "..."
-    return first_sentence or "Note"
+    return first_sentence or ("Note" if french else "Note")
 
 
 _PARAPHRASE_VERBS = {
@@ -379,6 +584,15 @@ _PARAPHRASE_VERBS = {
     enums.Channel.WEB: "checked online with",
     enums.Channel.LETTER: "got a letter from",
     enums.Channel.UPLOAD: "uploaded something to",
+}
+
+_PARAPHRASE_VERBS_FR = {
+    enums.Channel.PHONE: "avez appelé",
+    enums.Channel.EMAIL: "avez envoyé un courriel à",
+    enums.Channel.IN_PERSON: "avez visité",
+    enums.Channel.WEB: "avez vérifié en ligne avec",
+    enums.Channel.LETTER: "avez reçu une lettre de",
+    enums.Channel.UPLOAD: "avez téléversé quelque chose à",
 }
 
 _PARAPHRASE_STATUS_LABELS = {
@@ -395,6 +609,20 @@ _PARAPHRASE_STATUS_LABELS = {
     enums.ReportedStatus.RESOLVED: "the matter was resolved",
 }
 
+_PARAPHRASE_STATUS_LABELS_FR = {
+    enums.ReportedStatus.SUBMITTED: "votre demande a été soumise",
+    enums.ReportedStatus.RECEIVED: "votre demande a été reçue",
+    enums.ReportedStatus.PROCESSING: "votre demande est toujours en traitement",
+    enums.ReportedStatus.UNDER_REVIEW: "votre demande est toujours en révision",
+    enums.ReportedStatus.INCOMPLETE: "votre demande était incomplète",
+    enums.ReportedStatus.ADDITIONAL_INFO_REQUIRED: (
+        "ils ont besoin de plus de renseignements de votre part"
+    ),
+    enums.ReportedStatus.APPROVED: "votre demande a été approuvée",
+    enums.ReportedStatus.REFUSED: "votre demande a été refusée",
+    enums.ReportedStatus.RESOLVED: "le dossier a été résolu",
+}
+
 
 def _build_paraphrase(organization_stated, organization_display, channel, status, instruction):
     """
@@ -406,27 +634,44 @@ def _build_paraphrase(organization_stated, organization_display, channel, status
     eligibility, timelines, or an official outcome that was not literally
     extracted from the citizen's own words).
     """
-    verb = _PARAPHRASE_VERBS.get(channel)
+    french = _is_french()
+    verb = (_PARAPHRASE_VERBS_FR if french else _PARAPHRASE_VERBS).get(channel)
     # An inferred (not stated) organization is a guess -- do not put words in
     # the citizen's mouth about who they contacted until they confirm it.
     org = organization_display if organization_stated else ""
 
-    if verb and org:
-        subject = "you {verb} {org}".format(verb=verb, org=org)
-    elif org:
-        subject = "you were in touch with {org}".format(org=org)
-    elif verb:
-        subject = "you {verb} them".format(verb=verb)
+    if french:
+        if verb and org:
+            subject = "vous {verb} {org}".format(verb=verb, org=org)
+        elif org:
+            subject = "vous étiez en contact avec {org}".format(org=org)
+        elif verb:
+            subject = "vous les {verb}".format(verb=verb)
+        else:
+            subject = "vous avez enregistré ceci"
     else:
-        subject = "you recorded this"
+        if verb and org:
+            subject = "you {verb} {org}".format(verb=verb, org=org)
+        elif org:
+            subject = "you were in touch with {org}".format(org=org)
+        elif verb:
+            subject = "you {verb} them".format(verb=verb)
+        else:
+            subject = "you recorded this"
 
     clauses = []
-    status_phrase = _PARAPHRASE_STATUS_LABELS.get(status)
+    status_phrase = (_PARAPHRASE_STATUS_LABELS_FR if french else _PARAPHRASE_STATUS_LABELS).get(status)
     if status_phrase:
-        clauses.append("they said " + status_phrase)
+        clauses.append(("on vous a dit que " if french else "they said ") + status_phrase)
     if instruction:
-        clauses.append("they told you: " + instruction.rstrip("."))
+        clauses.append(("on vous a dit : " if french else "they told you: ") + instruction.rstrip("."))
 
+    if french:
+        if not clauses:
+            return "Entendu — {subject}.".format(subject=subject)
+        return "Entendu — {subject}, et {rest}.".format(
+            subject=subject, rest="; ".join(clauses)
+        )
     if not clauses:
         return "Got it — {subject}.".format(subject=subject)
     return "Got it — {subject}, and {rest}.".format(
@@ -442,16 +687,30 @@ def _guide_for(text):
     current point and verify the next applicable action instead of pretending
     to offer a personalized guide.
     """
-    steps = [
+    french = _is_french()
+    steps_fr = [
+        ("Confirmer où vous en êtes dans le processus", "Faites la liste de ce que vous avez déjà complété, de la confirmation que vous avez reçue, et de ce qui reste non résolu.", ""),
+        ("Vérifier la prochaine action officielle applicable", "Utilisez le service officiel responsable pour confirmer la prochaine action pour votre situation actuelle.", ""),
+        ("Préparer seulement ce qui reste", "Faites une liste à partir des instructions officielles actuelles et excluez ce que vous avez déjà complété.", ""),
+        ("Compléter la prochaine action applicable", "Suivez l'instruction vérifiée pour votre étape actuelle et révisez-la avant de soumettre, d'envoyer, ou de vous présenter.", ""),
+        ("Enregistrer la confirmation et le suivi", "Enregistrez les confirmations non sensibles, les interactions, les nouvelles instructions et les résultats pour que la démarche montre où vous en êtes.", ""),
+    ]
+    steps_en = [
         ("Confirm where you are in the process", "List what you have already completed, what confirmation you received, and what remains unresolved.", ""),
         ("Verify the next applicable official action", "Use the responsible official service to confirm the next action for your current point in the process.", ""),
         ("Prepare only what remains", "Build a checklist from the current official instructions and exclude anything you have already completed.", ""),
         ("Complete the next applicable action", "Follow the verified instruction for your current stage and review it before submitting, sending, or attending.", ""),
         ("Record confirmation and follow-up", "Record non-sensitive confirmations, interactions, new instructions, and outcomes so the Journey shows where you left off.", ""),
     ]
+    steps = steps_fr if french else steps_en
     clarification = (
-        "What have you already completed, and what response, instruction, or "
-        "result are you waiting for now?"
+        "Qu'avez-vous déjà complété, et quelle réponse, instruction ou "
+        "résultat attendez-vous maintenant?"
+        if french
+        else (
+            "What have you already completed, and what response, instruction, "
+            "or result are you waiting for now?"
+        )
     )
 
     return (
@@ -480,8 +739,9 @@ class RuleBasedAIService:
     def extract_journey(self, user_text, source_context=None):
         text = (user_text or "").strip()
         lowered = text.lower()
+        french = _is_french()
 
-        topic_titles = (
+        topic_titles_en = (
             ("study permit", "Study Permit Extension"),
             ("work permit", "Work Permit"),
             ("permanent residence", "Permanent Residence Application"),
@@ -502,8 +762,34 @@ class RuleBasedAIService:
             ("moved to ottawa", "Settling in Ottawa"),
             ("settle", "Settling in Ottawa"),
         )
+        topic_titles_fr = (
+            ("permis d'études", "Prolongation du permis d'études"),
+            ("permis d'etudes", "Prolongation du permis d'études"),
+            ("permis de travail", "Permis de travail"),
+            ("résidence permanente", "Demande de résidence permanente"),
+            ("residence permanente", "Demande de résidence permanente"),
+            ("citoyenneté", "Demande de citoyenneté"),
+            ("citoyennete", "Demande de citoyenneté"),
+            ("visa", "Demande de visa"),
+            ("nas", "Numéro d'assurance sociale"),
+            ("assurance sociale", "Numéro d'assurance sociale"),
+            ("carte santé", "Carte santé"),
+            ("carte sante", "Carte santé"),
+            ("ohip", "Couverture santé"),
+            ("permis de conduire", "Permis de conduire"),
+            ("renouveler mon passeport", "Renouvellement de passeport"),
+            ("renouvellement de passeport", "Renouvellement de passeport"),
+            ("passeport", "Demande de passeport"),
+            ("assurance-emploi", "Assurance-emploi"),
+            ("impôt", "Impôts et prestations"),
+            ("impot", "Impôts et prestations"),
+            ("logement", "Logement"),
+            ("déménagé à ottawa", "S'installer à Ottawa"),
+            ("demenage a ottawa", "S'installer à Ottawa"),
+            ("m'installer", "S'installer à Ottawa"),
+        )
         title = ""
-        for cue, candidate in topic_titles:
+        for cue, candidate in (topic_titles_fr if french else topic_titles_en):
             if cue in lowered:
                 title = candidate
                 break
@@ -511,27 +797,39 @@ class RuleBasedAIService:
         if not title:
             # Fall back to the citizen's own first clause, trimmed.
             clause = re.split(r"[.!?]", text)[0].strip()
-            clause = re.sub(
-                r"^(i|i am|i have|i need to|i want to|i just|im|i m)\s+",
-                "",
-                clause,
-                flags=re.IGNORECASE,
-            ).strip()
+            prefix_pattern = (
+                r"^(je suis|j'ai|j'|je dois|je veux|je|j ai|j)\s+"
+                if french
+                else r"^(i|i am|i have|i need to|i want to|i just|im|i m)\s+"
+            )
+            clause = re.sub(prefix_pattern, "", clause, flags=re.IGNORECASE).strip()
             title = (clause[:60].rsplit(" ", 1)[0] if len(clause) > 60 else clause)
-            title = title.capitalize() or "My journey"
+            default_title = "Ma démarche" if french else "My journey"
+            title = title.capitalize() or default_title
 
         guide_steps, clarification = _guide_for(text)
+        default_title = "Ma démarche" if french else "My journey"
+        guide_summary = (
+            (
+                "Gemini n'a pas été utilisé, donc ceci est un guide de continuité "
+                "générique plutôt qu'un plan propre à votre cas. Confirmez votre "
+                "situation actuelle auprès du service officiel responsable, puis "
+                "enregistrez ce que vous faites réellement."
+            )
+            if french
+            else (
+                "Gemini was not used, so this is a generic continuity guide rather "
+                "than a case-specific plan. Confirm your current point with the "
+                "responsible official service, then record what you actually do."
+            )
+        )
         return JourneyDraft(
             title=title,
             goal=text or title,
             organization="",
-            confidence=0.8 if title != "My journey" else 0.4,
+            confidence=0.8 if title != default_title else 0.4,
             extractor=self.name,
-            guide_summary=(
-                "Gemini was not used, so this is a generic continuity guide rather "
-                "than a case-specific plan. Confirm your current point with the "
-                "responsible official service, then record what you actually do."
-            ),
+            guide_summary=guide_summary,
             guide_steps=guide_steps,
             needs_clarification=bool(clarification),
             clarification_question=clarification,
@@ -545,10 +843,10 @@ class RuleBasedAIService:
         context = minimal_context or {}
         today = self._now()
 
-        channel, _ = _first_cue(lowered, _CHANNEL_CUES)
+        channel, _ = _first_cue(lowered, _channel_cues())
         channel = channel or enums.Channel.UNKNOWN
 
-        status, _ = _first_cue(lowered, _STATUS_CUES)
+        status, _ = _first_cue(lowered, _status_cues())
         status = status or enums.ReportedStatus.UNKNOWN
 
         instruction = _detect_instruction(text)
@@ -566,7 +864,7 @@ class RuleBasedAIService:
         occurred_on = _detect_date(text, today)
         reference = _detect_reference(text)
 
-        next_action, _ = _first_cue(lowered, _ACTION_CUES)
+        next_action, _ = _first_cue(lowered, _action_cues())
         if not next_action:
             if status in enums.WAITING_STATUSES:
                 next_action = enums.NextActionCode.WAIT

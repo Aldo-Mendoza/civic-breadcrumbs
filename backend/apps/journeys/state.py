@@ -19,12 +19,19 @@ Two rules are enforced structurally rather than by convention:
 """
 from dataclasses import dataclass, field
 
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
+
 from common.utils import format_day
 
 from . import enums
 
 #: Phrases indicating the citizen was told to wait, used when an explicit
-#: next-action code is absent.
+#: next-action code is absent. This is substring-matched against recorded
+#: instruction text (possibly AI-generated, possibly French per Phase B), so
+#: both languages' phrases are included unconditionally rather than gated by
+#: the active locale -- a French phrase will not spuriously match English
+#: text or vice versa, so being inclusive here is only ever safer.
 _WAIT_PHRASES = (
     "wait",
     "do not submit another",
@@ -32,28 +39,37 @@ _WAIT_PHRASES = (
     "no action",
     "nothing further",
     "no further action",
+    "attend",
+    "ne pas soumettre",
+    "ne soumettez pas",
+    "aucune action",
+    "rien d'autre",
+    "aucune autre action",
 )
 
+#: Module-level dict: values must be lazy, or they would be translated once
+#: at import time (using whatever locale happens to be active at server
+#: startup) and never re-evaluate per request.
 _CHANNEL_PHRASES = {
-    enums.Channel.PHONE: "a phone call",
-    enums.Channel.EMAIL: "an email",
-    enums.Channel.IN_PERSON: "an in-person visit",
-    enums.Channel.WEB: "a website",
-    enums.Channel.LETTER: "a letter",
-    enums.Channel.UPLOAD: "an upload",
+    enums.Channel.PHONE: gettext_lazy("a phone call"),
+    enums.Channel.EMAIL: gettext_lazy("an email"),
+    enums.Channel.IN_PERSON: gettext_lazy("an in-person visit"),
+    enums.Channel.WEB: gettext_lazy("a website"),
+    enums.Channel.LETTER: gettext_lazy("a letter"),
+    enums.Channel.UPLOAD: gettext_lazy("an upload"),
 }
 
 _STATUS_LABELS = {
-    enums.ReportedStatus.SUBMITTED: "submitted",
-    enums.ReportedStatus.RECEIVED: "received",
-    enums.ReportedStatus.PROCESSING: "still processing",
-    enums.ReportedStatus.UNDER_REVIEW: "still under review",
-    enums.ReportedStatus.INCOMPLETE: "incomplete",
-    enums.ReportedStatus.ADDITIONAL_INFO_REQUIRED: "needing more information",
-    enums.ReportedStatus.APPROVED: "approved",
-    enums.ReportedStatus.REFUSED: "refused",
-    enums.ReportedStatus.RESOLVED: "resolved",
-    enums.ReportedStatus.UNKNOWN: "unclear",
+    enums.ReportedStatus.SUBMITTED: gettext_lazy("submitted"),
+    enums.ReportedStatus.RECEIVED: gettext_lazy("received"),
+    enums.ReportedStatus.PROCESSING: gettext_lazy("still processing"),
+    enums.ReportedStatus.UNDER_REVIEW: gettext_lazy("still under review"),
+    enums.ReportedStatus.INCOMPLETE: gettext_lazy("incomplete"),
+    enums.ReportedStatus.ADDITIONAL_INFO_REQUIRED: gettext_lazy("needing more information"),
+    enums.ReportedStatus.APPROVED: gettext_lazy("approved"),
+    enums.ReportedStatus.REFUSED: gettext_lazy("refused"),
+    enums.ReportedStatus.RESOLVED: gettext_lazy("resolved"),
+    enums.ReportedStatus.UNKNOWN: gettext_lazy("unclear"),
 }
 
 
@@ -136,11 +152,11 @@ def _describe_event(breadcrumb):
 
     if breadcrumb.kind == enums.BreadcrumbKind.INTERACTION and org:
         if channel_phrase:
-            return "On {when} you recorded {how} with {org}.".format(
+            return _("On {when} you recorded {how} with {org}.").format(
                 when=when, how=channel_phrase, org=org
             )
-        return "On {when} you recorded contact with {org}.".format(when=when, org=org)
-    return "On {when} you recorded: {title}".format(when=when, title=breadcrumb.title)
+        return _("On {when} you recorded contact with {org}.").format(when=when, org=org)
+    return _("On {when} you recorded: {title}").format(when=when, title=breadcrumb.title)
 
 
 def _next_action_sentence(code, instruction, organization):
@@ -153,45 +169,45 @@ def _next_action_sentence(code, instruction, organization):
     """
     if instruction:
         prefix = {
-            enums.NextActionCode.WAIT: "Wait, as you were told: ",
-            enums.NextActionCode.UPLOAD: "Provide what was asked for: ",
-            enums.NextActionCode.SUBMIT: "Submit what was asked for: ",
-            enums.NextActionCode.PROVIDE_DOCUMENT: "Provide the document requested: ",
-            enums.NextActionCode.CALL: "Follow up by phone: ",
-            enums.NextActionCode.VISIT: "Attend in person: ",
-            enums.NextActionCode.CONTACT_ORGANIZATION: "Follow up: ",
+            enums.NextActionCode.WAIT: _("Wait, as you were told: "),
+            enums.NextActionCode.UPLOAD: _("Provide what was asked for: "),
+            enums.NextActionCode.SUBMIT: _("Submit what was asked for: "),
+            enums.NextActionCode.PROVIDE_DOCUMENT: _("Provide the document requested: "),
+            enums.NextActionCode.CALL: _("Follow up by phone: "),
+            enums.NextActionCode.VISIT: _("Attend in person: "),
+            enums.NextActionCode.CONTACT_ORGANIZATION: _("Follow up: "),
         }.get(code)
         if prefix:
             return prefix + instruction.rstrip(".") + "."
 
     if code == enums.NextActionCode.CONTACT_ORGANIZATION:
         if organization:
-            return "Contact {org} about the next step.".format(org=organization)
-        return "Contact the responsible organization about the next step."
+            return _("Contact {org} about the next step.").format(org=organization)
+        return _("Contact the responsible organization about the next step.")
 
     plain = {
-        enums.NextActionCode.WAIT: (
+        enums.NextActionCode.WAIT: _(
             "Wait for an update unless your circumstances change."
         ),
-        enums.NextActionCode.UPLOAD: "Upload the document that was requested.",
-        enums.NextActionCode.SUBMIT: "Submit what was requested.",
-        enums.NextActionCode.PROVIDE_DOCUMENT: "Provide the document requested.",
-        enums.NextActionCode.CALL: "Call the organization for an update.",
-        enums.NextActionCode.VISIT: "Attend the office in person.",
+        enums.NextActionCode.UPLOAD: _("Upload the document that was requested."),
+        enums.NextActionCode.SUBMIT: _("Submit what was requested."),
+        enums.NextActionCode.PROVIDE_DOCUMENT: _("Provide the document requested."),
+        enums.NextActionCode.CALL: _("Call the organization for an update."),
+        enums.NextActionCode.VISIT: _("Attend the office in person."),
     }.get(code)
-    return plain or "No next action has been recorded yet."
+    return plain or _("No next action has been recorded yet.")
 
 
 def _empty_state():
     return JourneyState(
         status=enums.JourneyStatus.ACTIVE,
-        current_state="Nothing has been recorded for this journey yet.",
-        next_action=(
+        current_state=_("Nothing has been recorded for this journey yet."),
+        next_action=_(
             "Record what has happened so far, so you do not have to remember "
             "it yourself."
         ),
         next_action_code=enums.NextActionCode.NONE,
-        unresolved_issue="No events have been recorded yet.",
+        unresolved_issue=_("No events have been recorded yet."),
         considered_count=0,
     )
 
@@ -257,18 +273,18 @@ def compute_staleness(status, breadcrumbs, now):
         return Staleness(False, days, last_recorded_at, "")
 
     if status == enums.JourneyStatus.ACTION_REQUIRED:
-        message = (
+        message = _(
             "You haven't recorded anything new in {days} days, and "
             "something was still outstanding at your last update. If "
             "anything has happened since, record it so this stays "
-            "accurate.".format(days=days)
-        )
+            "accurate."
+        ).format(days=days)
     else:
-        message = (
+        message = _(
             "You haven't recorded anything new in {days} days. If "
             "anything has happened since, record it so this stays "
-            "accurate.".format(days=days)
-        )
+            "accurate."
+        ).format(days=days)
     return Staleness(True, days, last_recorded_at, message)
 
 
@@ -325,14 +341,14 @@ def derive_journey_state(journey, breadcrumbs):
         return with_evidence(
             status_evidence,
             status=enums.JourneyStatus.COMPLETED,
-            current_state=(
+            current_state=_(
                 "Your last recorded update, on {when}, reported the outcome as "
-                "{outcome}.".format(
-                    when=format_day(status_evidence.occurred_at),
-                    outcome=_STATUS_LABELS.get(reported_status, "recorded"),
-                )
+                "{outcome}."
+            ).format(
+                when=format_day(status_evidence.occurred_at),
+                outcome=_STATUS_LABELS.get(reported_status, _("recorded")),
             ),
-            next_action="No further action has been recorded.",
+            next_action=_("No further action has been recorded."),
             next_action_code=enums.NextActionCode.NONE,
             unresolved_issue="",
         )
@@ -350,19 +366,17 @@ def derive_journey_state(journey, breadcrumbs):
         return with_evidence(
             action_evidence,
             status=enums.JourneyStatus.ACTION_REQUIRED,
-            current_state=(
+            current_state=_(
                 "Your last recorded update, on {when}, indicated that something "
-                "is needed from you.".format(
-                    when=format_day(action_evidence.occurred_at)
-                )
-            ),
+                "is needed from you."
+            ).format(when=format_day(action_evidence.occurred_at)),
             next_action=_next_action_sentence(
                 action_evidence.suggested_next_action,
                 action_evidence.instruction or instruction,
                 organization,
             ),
             next_action_code=action_evidence.suggested_next_action,
-            unresolved_issue="A recorded instruction is still outstanding.",
+            unresolved_issue=_("A recorded instruction is still outstanding."),
         )
 
     # --- Rule 3: waiting ----------------------------------------------------
@@ -376,45 +390,42 @@ def derive_journey_state(journey, breadcrumbs):
     if waiting_by_status or waiting_by_instruction or waiting_by_code:
         anchor = status_evidence or instruction_evidence or latest
         label = (
-            _STATUS_LABELS.get(reported_status, "still in progress")
+            _STATUS_LABELS.get(reported_status, _("still in progress"))
             if waiting_by_status
-            else "still in progress"
+            else _("still in progress")
         )
+        with_org = _(" with {org}").format(org=organization) if organization else ""
         return with_evidence(
             anchor,
             status=enums.JourneyStatus.WAITING,
-            current_state=(
+            current_state=_(
                 "Your last recorded interaction{with_org}, on {when}, reported "
-                "the matter as {label}.".format(
-                    with_org=(" with " + organization) if organization else "",
-                    when=format_day(anchor.occurred_at),
-                    label=label,
-                )
+                "the matter as {label}."
+            ).format(
+                with_org=with_org,
+                when=format_day(anchor.occurred_at),
+                label=label,
             ),
             next_action=_next_action_sentence(
                 enums.NextActionCode.WAIT, instruction, organization
             ),
             next_action_code=enums.NextActionCode.WAIT,
-            unresolved_issue=(
-                "No newer status has been recorded since {when}.".format(
-                    when=format_day(anchor.occurred_at)
-                )
-            ),
+            unresolved_issue=_(
+                "No newer status has been recorded since {when}."
+            ).format(when=format_day(anchor.occurred_at)),
         )
 
     # --- Rule 4: recorded activity that implies no particular state ---------
     return with_evidence(
         latest,
         status=enums.JourneyStatus.ACTIVE,
-        current_state=(
-            "Your most recent recorded event was on {when}: {title}".format(
-                when=format_day(latest.occurred_at), title=latest.title
-            )
-        ),
-        next_action=(
+        current_state=_(
+            "Your most recent recorded event was on {when}: {title}"
+        ).format(when=format_day(latest.occurred_at), title=latest.title),
+        next_action=_(
             "No next action has been recorded. If an organization has told you "
             "something, record it so this stays up to date."
         ),
         next_action_code=enums.NextActionCode.NONE,
-        unresolved_issue="No status has been recorded for this journey yet.",
+        unresolved_issue=_("No status has been recorded for this journey yet."),
     )

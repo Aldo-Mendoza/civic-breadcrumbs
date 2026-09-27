@@ -11,6 +11,7 @@ both implementations are held to exactly the same contract.
 """
 from datetime import date
 
+from django.utils.translation import get_language
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from apps.journeys import enums
@@ -39,16 +40,29 @@ def clarification_for(organization, status, instruction, channel):
     question. We ask about the single most load-bearing missing fact rather
     than interviewing the citizen.
     """
+    french = (get_language() or "en").startswith("fr")
     if not organization:
-        return "Which organization was this with?"
+        return "Avec quelle organisation était-ce?" if french else "Which organization was this with?"
     if not status and not instruction:
         return (
-            "What did they tell you? For example, that it is still being "
-            "processed, or that they need something from you."
+            (
+                "Que vous a-t-on dit? Par exemple, que la demande est "
+                "toujours en traitement, ou qu'ils ont besoin de quelque "
+                "chose de votre part."
+            )
+            if french
+            else (
+                "What did they tell you? For example, that it is still being "
+                "processed, or that they need something from you."
+            )
         )
     if channel == enums.Channel.UNKNOWN:
-        return "Was this a phone call, an email, or an in-person visit?"
-    return "Was this something they told you directly, or something you read online?"
+        return "Était-ce un appel téléphonique, un courriel, ou une visite en personne?" if french else "Was this a phone call, an email, or an in-person visit?"
+    return (
+        "Est-ce quelque chose qu'on vous a dit directement, ou que vous avez lu en ligne?"
+        if french
+        else "Was this something they told you directly, or something you read online?"
+    )
 
 
 class BreadcrumbDraft(BaseModel):

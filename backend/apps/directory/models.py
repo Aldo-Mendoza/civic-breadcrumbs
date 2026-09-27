@@ -12,6 +12,11 @@ from urllib.parse import urlparse
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from django.db import models
+from django.utils.translation import get_language
+
+
+def _is_french():
+    return (get_language() or "en").startswith("fr")
 
 #: The only hostnames a curated official link may point to: Government of
 #: Canada (federal) and Government of Ontario (provincial). This is a
@@ -53,6 +58,13 @@ class Organization(models.Model):
     )
     description = models.TextField(blank=True)
     official_url = models.URLField(max_length=500, validators=[URLValidator()])
+    #: French counterparts (French localization, Phase D). Blank means no
+    #: verified French text/link exists yet -- localized_* falls back to the
+    #: English canonical field rather than showing an empty value, and never
+    #: falls back to a guessed URL (CLAUDE.md §21: never invent an official
+    #: link).
+    description_fr = models.TextField(blank=True)
+    official_url_fr = models.URLField(max_length=500, blank=True, validators=[URLValidator()])
     #: Lowercase aliases used for deterministic organization matching.
     aliases = models.JSONField(default=list, blank=True)
     #: Lowercase topic keywords that route a journey to this organization (§21).
@@ -64,6 +76,14 @@ class Organization(models.Model):
 
     def __str__(self) -> str:
         return self.short_name or self.name
+
+    @property
+    def localized_description(self):
+        return self.description_fr if _is_french() and self.description_fr else self.description
+
+    @property
+    def localized_official_url(self):
+        return self.official_url_fr if _is_french() and self.official_url_fr else self.official_url
 
 
 class OfficialSource(models.Model):
@@ -82,6 +102,12 @@ class OfficialSource(models.Model):
     title = models.CharField(max_length=300)
     url = models.URLField(max_length=500, validators=[URLValidator()])
     description = models.TextField(blank=True)
+    #: French counterparts (French localization, Phase D). url_fr, when
+    #: present, must be a real, human-verified French page on the same
+    #: government domain -- never a guessed slug (CLAUDE.md §21).
+    title_fr = models.CharField(max_length=300, blank=True)
+    description_fr = models.TextField(blank=True)
+    url_fr = models.URLField(max_length=500, blank=True, validators=[URLValidator()])
     topic = models.CharField(max_length=100, blank=True)
     active = models.BooleanField(default=True)
     final_url = models.URLField(max_length=500, blank=True)
@@ -111,6 +137,18 @@ class OfficialSource(models.Model):
     def __str__(self) -> str:
         return self.title
 
+    @property
+    def localized_title(self):
+        return self.title_fr if _is_french() and self.title_fr else self.title
+
+    @property
+    def localized_description(self):
+        return self.description_fr if _is_french() and self.description_fr else self.description
+
+    @property
+    def localized_url(self):
+        return self.url_fr if _is_french() and self.url_fr else self.url
+
     def clean(self):
         """
         Enforce the government-domain rule at the model layer, so it can never
@@ -126,6 +164,16 @@ class OfficialSource(models.Model):
                         "Canada (canada.ca / gc.ca) or Government of Ontario "
                         "(ontario.ca / gov.on.ca) domains. Never invent or "
                         "link an unofficial source (§21)."
+                    )
+                }
+            )
+        if self.url_fr and not is_government_domain(self.url_fr):
+            raise ValidationError(
+                {
+                    "url_fr": (
+                        "The French official source link is held to the same "
+                        "rule as url: Government of Canada or Government of "
+                        "Ontario domains only (§21)."
                     )
                 }
             )

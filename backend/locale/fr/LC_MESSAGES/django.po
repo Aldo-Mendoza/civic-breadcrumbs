@@ -1,0 +1,480 @@
+# French (Canada) translations for brdcrmbs deterministic backend text.
+# See CLAUDE.md's French-localization plan: this covers state derivation,
+# "I'm stuck"/handoff summaries, and API error messages -- the text that is
+# never AI-generated, so it must be translated here rather than steered via
+# a prompt (see services/ai/prompts.py for the AI-generated-content side).
+msgid ""
+msgstr ""
+"Project-Id-Version: brdcrmbs\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-27 02:37-0400\n"
+"PO-Revision-Date: 2026-09-27 02:07-0400\n"
+"Last-Translator: brdcrmbs\n"
+"Language-Team: French\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid ""
+"We do not have enough verified information to identify the responsible "
+"organization."
+msgstr ""
+"Nous n'avons pas assez d'information vérifiée pour identifier l'organisation "
+"responsable."
+
+msgid ""
+"No organization needs to hear from you right now. Your last recorded update "
+"said to wait."
+msgstr ""
+"Aucune organisation n'a besoin d'entendre parler de vous pour l'instant. "
+"Votre dernière mise à jour enregistrée disait d'attendre."
+
+msgid "recorded this"
+msgstr "enregistré ceci"
+
+msgid "corrected this"
+msgstr "corrigé ceci"
+
+msgid "deleted that"
+msgstr "supprimé cela"
+
+msgid "saved that note"
+msgstr "enregistré cette note"
+
+msgid "Removed"
+msgstr "Supprimé"
+
+msgid "Saved"
+msgstr "Enregistré"
+
+msgid "{ack}. Your status is still {label}."
+msgstr "{ack}. Votre statut est toujours {label}."
+
+msgid "Because you {verb}, your status moved from {before} to {after}."
+msgstr "Parce que vous avez {verb}, votre statut est passé de {before} à {after}."
+
+msgid "Because you {verb}, the next recorded action changed to: {action}"
+msgstr "Parce que vous avez {verb}, la prochaine action enregistrée est devenue : {action}"
+
+msgid ""
+"You recorded something with the same wording already. Save it anyway if it "
+"really happened twice."
+msgstr "Vous avez déjà enregistré quelque chose avec le même libellé. Enregistrez-le quand même si cela s'est vraiment produit deux fois."
+
+msgid "Active"
+msgstr "Active"
+
+msgid "Waiting"
+msgstr "En attente"
+
+msgid "Action needed"
+msgstr "Action requise"
+
+msgid "Completed"
+msgstr "Terminée"
+
+msgid "Archived"
+msgstr "Archivée"
+
+msgid "It was reported as still processing."
+msgstr "Il a été rapporté que c'est toujours en traitement."
+
+msgid "It was reported as still under review."
+msgstr "Il a été rapporté que c'est toujours en révision."
+
+msgid "It was reported as submitted."
+msgstr "Il a été rapporté que c'est soumis."
+
+msgid "It was reported as received."
+msgstr "Il a été rapporté que c'est reçu."
+
+msgid "It was reported as incomplete."
+msgstr "Il a été rapporté que c'est incomplet."
+
+msgid "It was reported that more information is needed."
+msgstr ""
+"Il a été rapporté que des renseignements supplémentaires sont nécessaires."
+
+msgid "It was reported as approved."
+msgstr "Il a été rapporté que c'est approuvé."
+
+msgid "It was reported as refused."
+msgstr "Il a été rapporté que c'est refusé."
+
+msgid "It was reported as resolved."
+msgstr "Il a été rapporté que c'est résolu."
+
+msgid "by phone"
+msgstr "par téléphone"
+
+msgid "by email"
+msgstr "par courriel"
+
+msgid "in person"
+msgstr "en personne"
+
+msgid "online"
+msgstr "en ligne"
+
+msgid "by letter"
+msgstr "par lettre"
+
+msgid "by upload"
+msgstr "par téléversement"
+
+#, python-brace-format
+msgid "{desc} ({org})"
+msgstr "{desc} ({org})"
+
+#, python-brace-format
+msgid "{desc}, {channel}"
+msgstr "{desc}, {channel}"
+
+#, python-brace-format
+msgid "{when} - {what}"
+msgstr "{when} - {what}"
+
+#, python-brace-format
+msgid ". I was told: {instruction}"
+msgstr ". On m'a dit : {instruction}"
+
+msgid "Is any additional action required from me, or should I keep waiting?"
+msgstr ""
+"Une action supplémentaire est-elle requise de ma part, ou dois-je continuer "
+"à attendre?"
+
+msgid "Can you confirm exactly what I need to provide, and how to send it?"
+msgstr ""
+"Pouvez-vous confirmer exactement ce que je dois fournir, et comment "
+"l'envoyer?"
+
+msgid "Is there anything further I need to do to close this?"
+msgstr "Y a-t-il autre chose que je dois faire pour clore ce dossier?"
+
+msgid "What is the next step I should take?"
+msgstr "Quelle est la prochaine étape à suivre?"
+
+msgid "No status has been recorded for this journey."
+msgstr "Aucun statut n'a été enregistré pour cette démarche."
+
+msgid ""
+"Prepared from records kept by the person named above. This is a personal "
+"record, not an official government document."
+msgstr ""
+"Préparé à partir des dossiers conservés par la personne nommée ci-dessus. "
+"Ceci est un dossier personnel, pas un document gouvernemental officiel."
+
+msgid "CASE SUMMARY"
+msgstr "RÉSUMÉ DU DOSSIER"
+
+msgid "What I am trying to do:"
+msgstr "Ce que j'essaie d'accomplir :"
+
+msgid "What has happened so far:"
+msgstr "Ce qui s'est passé jusqu'à présent :"
+
+msgid "Last information I received:"
+msgstr "Dernière information reçue :"
+
+msgid "I was told: "
+msgstr "On m'a dit : "
+
+msgid "Reference number(s): "
+msgstr "Numéro(s) de référence : "
+
+msgid "My question:"
+msgstr "Ma question :"
+
+msgid "Organization involved: "
+msgstr "Organisation concernée : "
+
+msgid "a phone call"
+msgstr "un appel téléphonique"
+
+msgid "an email"
+msgstr "un courriel"
+
+msgid "an in-person visit"
+msgstr "une visite en personne"
+
+msgid "a website"
+msgstr "un site Web"
+
+msgid "a letter"
+msgstr "une lettre"
+
+msgid "an upload"
+msgstr "un téléversement"
+
+msgid "submitted"
+msgstr "soumis"
+
+msgid "received"
+msgstr "reçu"
+
+msgid "still processing"
+msgstr "toujours en traitement"
+
+msgid "still under review"
+msgstr "toujours en révision"
+
+msgid "incomplete"
+msgstr "incomplet"
+
+msgid "needing more information"
+msgstr "nécessitant plus de renseignements"
+
+msgid "approved"
+msgstr "approuvé"
+
+msgid "refused"
+msgstr "refusé"
+
+msgid "resolved"
+msgstr "résolu"
+
+msgid "unclear"
+msgstr "incertain"
+
+#, python-brace-format
+msgid "On {when} you recorded {how} with {org}."
+msgstr "Le {when}, vous avez enregistré {how} avec {org}."
+
+#, python-brace-format
+msgid "On {when} you recorded contact with {org}."
+msgstr "Le {when}, vous avez enregistré un contact avec {org}."
+
+#, python-brace-format
+msgid "On {when} you recorded: {title}"
+msgstr "Le {when}, vous avez enregistré : {title}"
+
+msgid "Wait, as you were told: "
+msgstr "Attendez, comme on vous l'a dit : "
+
+msgid "Provide what was asked for: "
+msgstr "Fournissez ce qui a été demandé : "
+
+msgid "Submit what was asked for: "
+msgstr "Soumettez ce qui a été demandé : "
+
+msgid "Provide the document requested: "
+msgstr "Fournissez le document demandé : "
+
+msgid "Follow up by phone: "
+msgstr "Faites un suivi par téléphone : "
+
+msgid "Attend in person: "
+msgstr "Présentez-vous en personne : "
+
+msgid "Follow up: "
+msgstr "Faites un suivi : "
+
+#, python-brace-format
+msgid "Contact {org} about the next step."
+msgstr "Contactez {org} au sujet de la prochaine étape."
+
+msgid "Contact the responsible organization about the next step."
+msgstr "Contactez l'organisation responsable au sujet de la prochaine étape."
+
+msgid "Wait for an update unless your circumstances change."
+msgstr "Attendez une mise à jour, sauf si votre situation change."
+
+msgid "Upload the document that was requested."
+msgstr "Téléversez le document demandé."
+
+msgid "Submit what was requested."
+msgstr "Soumettez ce qui a été demandé."
+
+msgid "Provide the document requested."
+msgstr "Fournissez le document demandé."
+
+msgid "Call the organization for an update."
+msgstr "Appelez l'organisation pour une mise à jour."
+
+msgid "Attend the office in person."
+msgstr "Présentez-vous en personne au bureau."
+
+msgid "No next action has been recorded yet."
+msgstr "Aucune prochaine action n'a encore été enregistrée."
+
+msgid "Nothing has been recorded for this journey yet."
+msgstr "Rien n'a encore été enregistré pour cette démarche."
+
+msgid ""
+"Record what has happened so far, so you do not have to remember it yourself."
+msgstr ""
+"Enregistrez ce qui s'est passé jusqu'à présent, pour ne pas avoir à vous en "
+"souvenir vous-même."
+
+msgid "No events have been recorded yet."
+msgstr "Aucun événement n'a encore été enregistré."
+
+#, python-brace-format
+msgid ""
+"You haven't recorded anything new in {days} days, and something was still "
+"outstanding at your last update. If anything has happened since, record it "
+"so this stays accurate."
+msgstr ""
+"Vous n'avez rien enregistré de nouveau depuis {days} jours, et quelque chose "
+"était toujours en suspens lors de votre dernière mise à jour. Si quelque "
+"chose s'est passé depuis, enregistrez-le pour que ceci reste exact."
+
+#, python-brace-format
+msgid ""
+"You haven't recorded anything new in {days} days. If anything has happened "
+"since, record it so this stays accurate."
+msgstr ""
+"Vous n'avez rien enregistré de nouveau depuis {days} jours. Si quelque chose "
+"s'est passé depuis, enregistrez-le pour que ceci reste exact."
+
+#, python-brace-format
+msgid ""
+"Your last recorded update, on {when}, reported the outcome as {outcome}."
+msgstr ""
+"Votre dernière mise à jour enregistrée, le {when}, a rapporté le résultat "
+"comme étant {outcome}."
+
+msgid "recorded"
+msgstr "enregistré"
+
+msgid "No further action has been recorded."
+msgstr "Aucune autre action n'a été enregistrée."
+
+#, python-brace-format
+msgid ""
+"Your last recorded update, on {when}, indicated that something is needed "
+"from you."
+msgstr ""
+"Votre dernière mise à jour enregistrée, le {when}, indiquait que quelque "
+"chose était requis de votre part."
+
+msgid "A recorded instruction is still outstanding."
+msgstr "Une instruction enregistrée est toujours en suspens."
+
+msgid "still in progress"
+msgstr "toujours en cours"
+
+#, python-brace-format
+msgid " with {org}"
+msgstr " avec {org}"
+
+#, python-brace-format
+msgid ""
+"Your last recorded interaction{with_org}, on {when}, reported the matter as "
+"{label}."
+msgstr ""
+"Votre dernière interaction enregistrée{with_org}, le {when}, a rapporté que "
+"la situation était {label}."
+
+#, python-brace-format
+msgid "No newer status has been recorded since {when}."
+msgstr "Aucun statut plus récent n'a été enregistré depuis le {when}."
+
+#, python-brace-format
+msgid "Your most recent recorded event was on {when}: {title}"
+msgstr "Votre événement enregistré le plus récent était le {when} : {title}"
+
+msgid ""
+"No next action has been recorded. If an organization has told you something, "
+"record it so this stays up to date."
+msgstr ""
+"Aucune prochaine action n'a été enregistrée. Si une organisation vous a dit "
+"quelque chose, enregistrez-le pour que ceci reste à jour."
+
+msgid "No status has been recorded for this journey yet."
+msgstr "Aucun statut n'a encore été enregistré pour cette démarche."
+
+msgid ""
+"You have not recorded anything for this journey yet, so there is nothing to "
+"summarise."
+msgstr ""
+"Vous n'avez encore rien enregistré pour cette démarche, il n'y a donc rien à "
+"résumer."
+
+#, python-brace-format
+msgid "You are working on: {goal}"
+msgstr "Vous travaillez sur : {goal}"
+
+#, python-brace-format
+msgid ""
+"You started recording this on {start} and your most recent entry was on "
+"{end}, {count} events in total."
+msgstr ""
+"Vous avez commencé à enregistrer ceci le {start} et votre entrée la plus "
+"récente était le {end}, {count} événements au total."
+
+#, python-brace-format
+msgid "The last instruction you recorded was: {instruction}"
+msgstr ""
+"La dernière instruction que vous avez enregistrée était : {instruction}"
+
+msgid "Nothing appears unresolved based on what you have recorded."
+msgstr "Rien ne semble non résolu d'après ce que vous avez enregistré."
+
+msgid "Something went wrong."
+msgstr "Quelque chose s'est mal passé."
+
+msgid "I couldn't organize this automatically right now."
+msgstr "Je n'ai pas pu organiser ceci automatiquement pour l'instant."
+
+#, python-format
+msgid "You can have up to %(limit)s active Journey."
+msgid_plural "You can have up to %(limit)s active Journeys."
+msgstr[0] "Vous pouvez avoir jusqu'à %(limit)s démarche active."
+msgstr[1] "Vous pouvez avoir jusqu'à %(limit)s démarches actives."
+
+#, python-format
+msgid ""
+"Your guest Journey is still safe, but your account is already at the "
+"%(limit)s-Journey limit. Archive or complete one and try again."
+msgstr ""
+"Votre démarche invité est toujours en sécurité, mais votre compte a déjà "
+"atteint la limite de %(limit)s démarches. Archivez-en une ou marquez-en une "
+"comme terminée, puis réessayez."
+
+msgid "We couldn't find that."
+msgstr "Nous n'avons pas trouvé cela."
+
+#, python-format
+msgid "You have made a lot of requests. Please try again in %(wait)s seconds."
+msgstr ""
+"Vous avez fait beaucoup de requêtes. Veuillez réessayer dans %(wait)s "
+"secondes."
+
+msgid "You do not have access to that."
+msgstr "Vous n'avez pas accès à cela."
+
+msgid "Some of that information was not valid."
+msgstr "Certaines de ces informations n'étaient pas valides."
+
+msgid "That request could not be completed."
+msgstr "Cette requête n'a pas pu être complétée."
+
+msgid "Something went wrong on our side."
+msgstr "Quelque chose s'est mal passé de notre côté."
+
+msgid "an unrecorded date"
+msgstr "une date non enregistrée"
+
+msgid "No AI key is configured."
+msgstr "Aucune clé IA n'est configurée."
+
+msgid "The AI client library is not installed."
+msgstr "La bibliothèque cliente IA n'est pas installée."
+
+msgid "The AI service did not respond in time."
+msgstr "Le service IA n'a pas répondu à temps."
+
+msgid "The AI service returned an empty response."
+msgstr "Le service IA a retourné une réponse vide."
+
+msgid "The AI service returned unreadable output."
+msgstr "Le service IA a retourné une sortie illisible."
+
+msgid "The AI service returned an unexpected shape."
+msgstr "Le service IA a retourné une forme inattendue."
+
+msgid "The AI service returned invalid fields."
+msgstr "Le service IA a retourné des champs invalides."

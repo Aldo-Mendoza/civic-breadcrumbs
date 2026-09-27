@@ -37,6 +37,8 @@ button { color: inherit; }
 .menu-button span { display: block; height: 2px; width: 28px; border-radius: 2px; background: var(--ink); }
 .profile-button { width: 48px; height: 48px; border-radius: 50%; background: #edf2f3; display: grid; place-items: center; }
 .profile-button svg { width: 27px; height: 27px; fill: #6a7a84; }
+.lang-toggle { border: 1px solid var(--line); background: #fff; cursor: pointer; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: .82rem; letter-spacing: .03em; color: var(--teal-dark); }
+.lang-toggle:hover { border-color: var(--teal); }
 
 .landing-nav { display: flex; align-items: center; gap: 30px; margin-left: 46px; }
 .landing-nav a { color: var(--ink); font-weight: 650; text-decoration: none; }

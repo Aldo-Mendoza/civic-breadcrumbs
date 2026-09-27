@@ -10,14 +10,20 @@ describing that cache's diff; there is nothing new to compute.
 """
 from dataclasses import dataclass
 
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
+
 from . import enums
 
+#: Module-level dict: values must be lazy, or they would be translated once
+#: at import time and never re-evaluate per request (see apps/journeys/state.py
+#: for the same pattern and reasoning).
 _STATUS_LABELS = {
-    enums.JourneyStatus.ACTIVE: "Active",
-    enums.JourneyStatus.WAITING: "Waiting",
-    enums.JourneyStatus.ACTION_REQUIRED: "Action needed",
-    enums.JourneyStatus.COMPLETED: "Completed",
-    enums.JourneyStatus.ARCHIVED: "Archived",
+    enums.JourneyStatus.ACTIVE: gettext_lazy("Active"),
+    enums.JourneyStatus.WAITING: gettext_lazy("Waiting"),
+    enums.JourneyStatus.ACTION_REQUIRED: gettext_lazy("Action needed"),
+    enums.JourneyStatus.COMPLETED: gettext_lazy("Completed"),
+    enums.JourneyStatus.ARCHIVED: gettext_lazy("Archived"),
 }
 
 
@@ -29,7 +35,7 @@ class StateChange:
     message: str
 
 
-def describe_change(before, after, verb, ack="Saved"):
+def describe_change(before, after, verb, ack=gettext_lazy("Saved")):
     """
     Describe what a mutation actually did to the journey.
 
@@ -47,20 +53,18 @@ def describe_change(before, after, verb, ack="Saved"):
     after_label = _STATUS_LABELS.get(after.status, after.status)
 
     if not changed:
-        message = "{ack}. Your status is still {label}.".format(
+        message = _("{ack}. Your status is still {label}.").format(
             ack=ack, label=after_label
         )
         return StateChange(False, False, False, message)
 
     if status_changed:
         before_label = _STATUS_LABELS.get(before.status, before.status)
-        message = (
-            "Because you {verb}, your status moved from {before} to "
-            "{after}.".format(verb=verb, before=before_label, after=after_label)
-        )
+        message = _(
+            "Because you {verb}, your status moved from {before} to {after}."
+        ).format(verb=verb, before=before_label, after=after_label)
     else:
-        message = (
-            "Because you {verb}, the next recorded action changed to: "
-            "{action}".format(verb=verb, action=after.next_action)
-        )
+        message = _(
+            "Because you {verb}, the next recorded action changed to: {action}"
+        ).format(verb=verb, action=after.next_action)
     return StateChange(True, status_changed, next_action_changed, message)

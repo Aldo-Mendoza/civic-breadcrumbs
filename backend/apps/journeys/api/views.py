@@ -11,6 +11,7 @@ unavailable.
 import logging
 
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from drf_spectacular.utils import extend_schema
 from rest_framework import status as http_status
 from rest_framework.response import Response
@@ -363,7 +364,7 @@ class BreadcrumbListCreateView(APIView):
 
         after_breadcrumbs = list(selectors.evidence_breadcrumbs(journey))
         state = derive_journey_state(journey, after_breadcrumbs)
-        change = feedback.describe_change(before_state, state, verb="recorded this")
+        change = feedback.describe_change(before_state, state, verb=_("recorded this"))
 
         body = BreadcrumbDetailSerializer(breadcrumb).data
         body["created"] = created
@@ -426,7 +427,7 @@ class BreadcrumbDetailView(APIView):
         )
 
         after_breadcrumbs = list(selectors.evidence_breadcrumbs(journey))
-        change = feedback.describe_change(before_state, state, verb="corrected this")
+        change = feedback.describe_change(before_state, state, verb=_("corrected this"))
 
         body = BreadcrumbDetailSerializer(breadcrumb).data
         body["state"] = _state_payload(state, after_breadcrumbs, timezone.now())
@@ -444,7 +445,7 @@ class BreadcrumbDetailView(APIView):
 
         after_breadcrumbs = list(selectors.evidence_breadcrumbs(journey))
         change = feedback.describe_change(
-            before_state, state, verb="deleted that", ack="Removed"
+            before_state, state, verb=_("deleted that"), ack=_("Removed")
         )
         return Response(
             {
@@ -566,8 +567,8 @@ class ResponsibleOrganizationView(APIView):
                 "official_sources": [
                     {
                         "id": str(source.id),
-                        "title": source.title,
-                        "url": source.url,
+                        "title": source.localized_title,
+                        "url": source.localized_url,
                         "verified_at": source.verified_at,
                     }
                     for source in official_sources_for(journey, organization)
@@ -587,9 +588,9 @@ class OfficialSourcesView(APIView):
                 "results": [
                     {
                         "id": str(source.id),
-                        "title": source.title,
-                        "url": source.url,
-                        "description": source.description,
+                        "title": source.localized_title,
+                        "url": source.localized_url,
+                        "description": source.localized_description,
                         "topic": source.topic,
                         "organization": {
                             "name": source.organization.name,
@@ -710,7 +711,7 @@ class SaveAsNoteView(APIView):
         after_breadcrumbs = list(selectors.evidence_breadcrumbs(journey))
         state = derive_journey_state(journey, after_breadcrumbs)
         change = feedback.describe_change(
-            before_state, state, verb="saved that note"
+            before_state, state, verb=_("saved that note")
         )
 
         body = BreadcrumbDetailSerializer(breadcrumb).data

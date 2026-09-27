@@ -12,6 +12,8 @@ mechanisms handle that, and neither needs a model:
    rejection on purpose: someone may genuinely have called the same office twice
    in one day and be right to record both.
 """
+from django.utils.translation import gettext as _
+
 from common.utils import normalize_text
 
 #: How many recent breadcrumbs to compare against. Bounded so the check stays
@@ -51,7 +53,7 @@ def duplicate_warning(breadcrumb):
 
     return {
         "code": ErrorCode.DUPLICATE_EVENT,
-        "message": (
+        "message": _(
             "You recorded something with the same wording already. Save it "
             "anyway if it really happened twice."
         ),

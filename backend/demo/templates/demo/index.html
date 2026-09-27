@@ -4,29 +4,30 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>brdcrmbs</title>
-  <meta name="description" content="brdcrmbs keeps a structured record of your public-service journey — what happened, where you left off, and what to do next.">
+  <meta name="description" id="meta-description" data-i18n-content="meta.description" content="brdcrmbs keeps a structured record of your public-service journey — what happened, where you left off, and what to do next.">
   <link rel="icon" type="image/x-icon" href="{% static 'demo/img/favicon.ico' %}">
   <link rel="apple-touch-icon" href="{% static 'demo/img/apple-touch-icon.jpeg' %}">
   <link rel="stylesheet" href="{% static 'demo/app.css' %}">
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to main content</a>
+  <a class="skip-link" href="#main" data-i18n="a11y.skip_link">Skip to main content</a>
 
   <header class="app-header">
-    <button class="icon-button menu-button" id="menu-button" aria-label="Open journeys menu" aria-expanded="false" aria-controls="sidebar">
+    <button class="icon-button menu-button" id="menu-button" aria-label="Open journeys menu" data-i18n-aria-label="header.menu_aria" aria-expanded="false" aria-controls="sidebar">
       <span></span><span></span><span></span>
     </button>
     <button class="brand" id="home-button" type="button">
-      <img src="{% static 'demo/img/logo.jpeg' %}" alt="brdcrmbs, home">
+      <img src="{% static 'demo/img/logo.jpeg' %}" alt="brdcrmbs, home" data-i18n-alt="header.brand_alt">
     </button>
     <nav class="landing-nav" id="landing-nav" aria-label="Page sections" hidden>
-      <a href="#how-it-works">How it works</a>
-      <a href="#why-brdcrmbs">Why brdcrmbs</a>
+      <a href="#how-it-works" data-i18n="nav.how_it_works">How it works</a>
+      <a href="#why-brdcrmbs" data-i18n="nav.why_brdcrmbs">Why brdcrmbs</a>
     </nav>
     <div class="header-actions">
-      <button class="text-link" id="landing-nav-signin" type="button" hidden>Sign in</button>
-      <button class="button primary compact" id="landing-nav-start" type="button" hidden>Get started <span aria-hidden="true">→</span></button>
-      <button class="profile-button" id="profile-button" aria-label="Account and sign in">
+      <button class="text-link" id="landing-nav-signin" type="button" hidden data-i18n="nav.sign_in">Sign in</button>
+      <button class="button primary compact" id="landing-nav-start" type="button" hidden data-i18n-html="nav.get_started">Get started <span aria-hidden="true">→</span></button>
+      <button class="lang-toggle" id="lang-toggle" type="button" aria-label="Change language" data-i18n-aria-label="header.lang_toggle_aria">FR</button>
+      <button class="profile-button" id="profile-button" aria-label="Account and sign in" data-i18n-aria-label="header.profile_aria">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0H5Z"/></svg>
       </button>
     </div>
@@ -37,172 +38,172 @@
     <div class="sidebar-head">
       <div>
         <p class="eyebrow">brdcrmbs</p>
-        <h2>Your journeys</h2>
+        <h2 data-i18n="sidebar.title">Your journeys</h2>
       </div>
-      <button class="icon-button close-icon" id="close-sidebar" aria-label="Close menu">×</button>
+      <button class="icon-button close-icon" id="close-sidebar" aria-label="Close menu" data-i18n-aria-label="sidebar.close_aria">×</button>
     </div>
-    <button class="button primary full" id="sidebar-new">Start a new goal <span aria-hidden="true">→</span></button>
+    <button class="button primary full" id="sidebar-new" data-i18n-html="sidebar.new_goal">Start a new goal <span aria-hidden="true">→</span></button>
     <p class="sidebar-quota" id="sidebar-quota" hidden></p>
     <ul class="sidebar-list" id="journey-list"></ul>
     <div class="sidebar-empty" id="sidebar-empty" hidden>
-      <p>No journeys yet.</p>
-      <span>Start a new goal above to begin your first one.</span>
+      <p data-i18n="sidebar.empty_title">No journeys yet.</p>
+      <span data-i18n="sidebar.empty_body">Start a new goal above to begin your first one.</span>
     </div>
     <div class="sidebar-note">
-      <strong>Your record, not a government file.</strong>
-      <span>Check official services for live application status.</span>
+      <strong data-i18n="sidebar.note_title">Your record, not a government file.</strong>
+      <span data-i18n="sidebar.note_body">Check official services for live application status.</span>
     </div>
   </aside>
 
   <main id="main">
     <section class="screen landing-screen" id="landing-screen" aria-labelledby="landing-title">
       <div class="landing-hero">
-        <p class="pill">Your goal. Your next step.</p>
-        <h1 id="landing-title">A clearer path through <span class="accent">public-service paperwork.</span></h1>
-        <p class="lede">Turn scattered steps, emails, and phone calls into one guide you can follow, with help whenever you get stuck.</p>
+        <p class="pill" data-i18n="landing.pill">Your goal. Your next step.</p>
+        <h1 id="landing-title" data-i18n-html="landing.title">A clearer path through <span class="accent">public-service paperwork.</span></h1>
+        <p class="lede" data-i18n="landing.lede">Turn scattered steps, emails, and phone calls into one guide you can follow, with help whenever you get stuck.</p>
         <div class="landing-actions">
-          <button class="button primary" id="landing-start">Start my guide <span aria-hidden="true">→</span></button>
-          <a class="button secondary" href="#guide-preview" id="landing-example">See an example</a>
+          <button class="button primary" id="landing-start" data-i18n-html="landing.start_cta">Start my guide <span aria-hidden="true">→</span></button>
+          <a class="button secondary" href="#guide-preview" id="landing-example" data-i18n="landing.example_cta">See an example</a>
         </div>
-        <p class="landing-caption">Built for HackTheHill 2026.</p>
+        <p class="landing-caption" data-i18n="landing.caption">Built for HackTheHill 2026.</p>
       </div>
 
       <div class="landing-preview" id="guide-preview">
         <div class="landing-preview-head">
-          <p class="eyebrow">Your guide, at a glance</p>
-          <span class="tag">Illustrative example</span>
+          <p class="eyebrow" data-i18n="landing.preview_eyebrow">Your guide, at a glance</p>
+          <span class="tag" data-i18n="landing.preview_tag">Illustrative example</span>
         </div>
         <div class="landing-preview-body">
           <div class="landing-preview-goal">
-            <p class="eyebrow">Your goal</p>
-            <h3>Passport renewal</h3>
-            <p>A clear plan, one step at a time.</p>
+            <p class="eyebrow" data-i18n="common.your_goal">Your goal</p>
+            <h3 data-i18n="landing.preview_goal_title">Passport renewal</h3>
+            <p data-i18n="landing.preview_goal_body">A clear plan, one step at a time.</p>
             <img src="{% static 'demo/img/favicon.ico' %}" alt="" aria-hidden="true" class="landing-preview-mark">
           </div>
           <ol class="guide-step-list landing-preview-steps">
             <li class="guide-step">
               <span class="step-orb">01</span>
-              <div class="guide-step-copy"><strong>Find your application form</strong></div>
-              <span class="guide-step-status IN_PROGRESS">In progress</span>
+              <div class="guide-step-copy"><strong data-i18n="landing.preview_step1">Find your application form</strong></div>
+              <span class="guide-step-status IN_PROGRESS" data-i18n="enum.guide_status.IN_PROGRESS">In progress</span>
               <span aria-hidden="true">›</span>
             </li>
             <li class="guide-step">
               <span class="step-orb">02</span>
-              <div class="guide-step-copy"><strong>Prepare your documents</strong></div>
+              <div class="guide-step-copy"><strong data-i18n="landing.preview_step2">Prepare your documents</strong></div>
               <span class="guide-step-status"></span>
               <span aria-hidden="true">›</span>
             </li>
             <li class="guide-step">
               <span class="step-orb">03</span>
-              <div class="guide-step-copy"><strong>Complete your application</strong></div>
+              <div class="guide-step-copy"><strong data-i18n="landing.preview_step3">Complete your application</strong></div>
               <span class="guide-step-status"></span>
               <span aria-hidden="true">›</span>
             </li>
             <li class="guide-step">
               <span class="step-orb">04</span>
-              <div class="guide-step-copy"><strong>Submit and track</strong></div>
+              <div class="guide-step-copy"><strong data-i18n="landing.preview_step4">Submit and track</strong></div>
               <span class="guide-step-status"></span>
               <span aria-hidden="true">›</span>
             </li>
           </ol>
         </div>
-        <p class="landing-preview-help"><span aria-hidden="true">?</span> Stuck on a step? Help is right here.</p>
+        <p class="landing-preview-help" data-i18n-html="landing.preview_help"><span aria-hidden="true">?</span> Stuck on a step? Help is right here.</p>
       </div>
 
       <div class="landing-features" id="why-brdcrmbs">
         <div class="landing-feature">
           <span class="icon-badge" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v4h4"/><path d="M9 13h6M9 17h6"/></svg></span>
-          <div><strong>Official source links</strong><p>Information from government websites, in one place.</p></div>
+          <div><strong data-i18n="landing.feature1_title">Official source links</strong><p data-i18n="landing.feature1_body">Information from government websites, in one place.</p></div>
         </div>
         <div class="landing-feature">
           <span class="icon-badge" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m4 6 2 2 3-3M4 13l2 2 3-3M4 20l2 2 3-3"/><path d="M12 6h8M12 13h8M12 20h8"/></svg></span>
-          <div><strong>Progress you can follow</strong><p>A clear, step-by-step guide for your situation.</p></div>
+          <div><strong data-i18n="landing.feature2_title">Progress you can follow</strong><p data-i18n="landing.feature2_body">A clear, step-by-step guide for your situation.</p></div>
         </div>
         <div class="landing-feature">
           <span class="icon-badge" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/></svg></span>
-          <div><strong>Help along the way</strong><p>Understand what to do next, in plain language.</p></div>
+          <div><strong data-i18n="landing.feature3_title">Help along the way</strong><p data-i18n="landing.feature3_body">Understand what to do next, in plain language.</p></div>
         </div>
       </div>
 
       <div class="landing-howitworks" id="how-it-works">
-        <h2>From "Where do I start?" <span class="accent">to "I know what's next."</span></h2>
+        <h2 data-i18n-html="landing.how_title">From "Where do I start?" <span class="accent">to "I know what's next."</span></h2>
         <div class="landing-steps">
           <div class="landing-step">
             <span class="step-orb">1</span>
-            <div><strong>Describe your goal</strong><p>Tell us what you need to do.</p></div>
+            <div><strong data-i18n="landing.step1_title">Describe your goal</strong><p data-i18n="landing.step1_body">Tell us what you need to do.</p></div>
           </div>
           <div class="landing-step">
             <span class="step-orb">2</span>
-            <div><strong>Confirm the details</strong><p>Make sure we understand your situation.</p></div>
+            <div><strong data-i18n="landing.step2_title">Confirm the details</strong><p data-i18n="landing.step2_body">Make sure we understand your situation.</p></div>
           </div>
           <div class="landing-step">
             <span class="step-orb">3</span>
-            <div><strong>Follow your steps</strong><p>Work through your guide at your own pace.</p></div>
+            <div><strong data-i18n="landing.step3_title">Follow your steps</strong><p data-i18n="landing.step3_body">Work through your guide at your own pace.</p></div>
           </div>
         </div>
       </div>
 
       <div class="landing-closing">
         <div>
-          <h2>We've thought about the same questions.</h2>
-          <p>brdcrmbs exists because navigating unfamiliar procedures shouldn't mean starting over every time.</p>
+          <h2 data-i18n="landing.closing_title">We've thought about the same questions.</h2>
+          <p data-i18n="landing.closing_body">brdcrmbs exists because navigating unfamiliar procedures shouldn't mean starting over every time.</p>
         </div>
-        <button class="button primary" id="landing-closing-cta">Find my first step <span aria-hidden="true">→</span></button>
+        <button class="button primary" id="landing-closing-cta" data-i18n-html="landing.closing_cta">Find my first step <span aria-hidden="true">→</span></button>
       </div>
 
-      <p class="privacy-note">Independent guidance, not a government service. It can't make decisions, access government case files, or submit applications on your behalf.</p>
+      <p class="privacy-note" data-i18n="landing.privacy_note">Independent guidance, not a government service. It can't make decisions, access government case files, or submit applications on your behalf.</p>
     </section>
 
     <section class="screen create-screen" id="create-screen" aria-labelledby="create-title" hidden>
       <div class="create-wrap">
-        <p class="eyebrow">Start your journey</p>
-        <h1 id="create-title">What would you like to do?</h1>
-        <p class="lede">Tell us your goal. We’ll help you keep track of it, step by step.</p>
+        <p class="eyebrow" data-i18n="create.eyebrow">Start your journey</p>
+        <h1 id="create-title" data-i18n="create.title">What would you like to do?</h1>
+        <p class="lede" data-i18n="create.lede">Tell us your goal. We’ll help you keep track of it, step by step.</p>
 
         <form class="goal-form" id="goal-form">
-          <label for="goal-input">Your goal</label>
-          <input id="goal-input" maxlength="200" placeholder="For example, renew my study permit" required>
+          <label for="goal-input" data-i18n="create.goal_label">Your goal</label>
+          <input id="goal-input" maxlength="200" placeholder="For example, renew my study permit" data-i18n-placeholder="create.goal_placeholder" required>
 
-          <label for="situation-input">Describe your situation</label>
+          <label for="situation-input" data-i18n="create.situation_label">Describe your situation</label>
           <div class="textarea-wrap">
-            <textarea id="situation-input" maxlength="1000" placeholder="What have you already done, and where do you need help?"></textarea>
-            <span>Up to 1,000 characters</span>
+            <textarea id="situation-input" maxlength="1000" placeholder="What have you already done, and where do you need help?" data-i18n-placeholder="create.situation_placeholder"></textarea>
+            <span data-i18n="create.char_limit">Up to 1,000 characters</span>
           </div>
 
           <div class="create-action">
-            <button class="round-arrow" type="submit" aria-label="Review and create guide">→</button>
-            <span>Create guide</span>
+            <button class="round-arrow" type="submit" aria-label="Review and create guide" data-i18n-aria-label="create.submit_aria">→</button>
+            <span data-i18n="create.submit_label">Create guide</span>
           </div>
-          <p class="privacy-note">Include relevant details. Avoid passport numbers, SINs, or other personal identification numbers.</p>
+          <p class="privacy-note" data-i18n="create.privacy_note">Include relevant details. Avoid passport numbers, SINs, or other personal identification numbers.</p>
         </form>
       </div>
     </section>
 
     <section class="screen journey-screen" id="journey-screen" hidden>
       <nav class="breadcrumbs" aria-label="Breadcrumb">
-        <button id="crumb-home">Home</button><span>/</span><strong>Your journey</strong>
+        <button id="crumb-home" data-i18n="journey.crumb_home">Home</button><span>/</span><strong data-i18n="journey.crumb_current">Your journey</strong>
       </nav>
 
       <section class="goal-card">
         <div>
-          <p class="eyebrow">Your goal</p>
+          <p class="eyebrow" data-i18n="common.your_goal">Your goal</p>
           <h1 id="journey-title">Loading…</h1>
           <p id="journey-goal"></p>
         </div>
-        <button class="button secondary compact" id="edit-journey">Edit goal</button>
+        <button class="button secondary compact" id="edit-journey" data-i18n="journey.edit_goal">Edit goal</button>
       </section>
 
       <section class="guide-card" aria-labelledby="guide-heading">
         <div class="guide-heading-row">
           <div>
-            <div class="guide-provenance-row"><p class="eyebrow">Suggested guide</p><span class="ai-source-badge" id="guide-engine"></span></div>
-            <h2 id="guide-heading">Your steps</h2>
+            <div class="guide-provenance-row"><p class="eyebrow" data-i18n="journey.guide_eyebrow">Suggested guide</p><span class="ai-source-badge" id="guide-engine"></span></div>
+            <h2 id="guide-heading" data-i18n="journey.guide_title">Your steps</h2>
             <p id="guide-summary"></p>
           </div>
           <div class="guide-progress-copy"><strong id="guide-progress-label">0 of 0 steps complete</strong><div class="progress-track"><span id="guide-progress-bar"></span></div></div>
         </div>
         <div class="notice guide-clarification" id="guide-clarification" hidden></div>
-        <p class="guidance-disclaimer">These are organizational suggestions, not proof that a step happened or a substitute for current official instructions.</p>
+        <p class="guidance-disclaimer" data-i18n="journey.guide_disclaimer">These are organizational suggestions, not proof that a step happened or a substitute for current official instructions.</p>
         <ol class="guide-step-list" id="guide-step-list"></ol>
       </section>
 
@@ -211,10 +212,10 @@
           <span class="status-pill" id="status-pill">Active</span>
           <span class="muted" id="record-count"></span>
         </div>
-        <p class="eyebrow">You are here</p>
+        <p class="eyebrow" data-i18n="journey.state_eyebrow">You are here</p>
         <h2 id="current-state"></h2>
         <div class="next-action">
-          <span>Next recorded action</span>
+          <span data-i18n="journey.next_action_label">Next recorded action</span>
           <strong id="next-action"></strong>
         </div>
         <p class="source-line" id="state-source"></p>
@@ -222,24 +223,24 @@
 
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Your audit trail</p>
-          <h2>What you recorded</h2>
-          <p>Open an event to review or correct what you recorded.</p>
+          <p class="eyebrow" data-i18n="journey.audit_eyebrow">Your audit trail</p>
+          <h2 data-i18n="journey.audit_title">What you recorded</h2>
+          <p data-i18n="journey.audit_body">Open an event to review or correct what you recorded.</p>
         </div>
-        <button class="button primary" id="add-event">Record what happened <span aria-hidden="true">→</span></button>
+        <button class="button primary" id="add-event" data-i18n-html="journey.record_cta">Record what happened <span aria-hidden="true">→</span></button>
       </div>
 
       <ol class="timeline-list" id="timeline-list"></ol>
       <div class="empty-state" id="empty-timeline" hidden>
         <div class="step-orb">1</div>
-        <div><strong>Record your first step</strong><p>Add a call, form, email, visit, document, or personal note.</p></div>
+        <div><strong data-i18n="journey.empty_title">Record your first step</strong><p data-i18n="journey.empty_body">Add a call, form, email, visit, document, or personal note.</p></div>
       </div>
 
       <div class="journey-actions">
-        <button class="button secondary" id="stuck-button"><span aria-hidden="true">?</span><span>I’m stuck</span></button>
-        <button class="button secondary" id="organization-button">Who handles this?</button>
-        <button class="button secondary" id="handoff-button">Hand me off</button>
-        <button class="button primary" id="complete-button"><span aria-hidden="true">✓</span> Mark my journey complete</button>
+        <button class="button secondary" id="stuck-button"><span aria-hidden="true">?</span><span data-i18n="journey.stuck_button">I’m stuck</span></button>
+        <button class="button secondary" id="organization-button" data-i18n="journey.org_button">Who handles this?</button>
+        <button class="button secondary" id="handoff-button" data-i18n="journey.handoff_button">Hand me off</button>
+        <button class="button primary" id="complete-button" data-i18n-html="journey.complete_button"><span aria-hidden="true">✓</span> Mark my journey complete</button>
       </div>
       <p class="action-feedback" id="action-feedback" hidden role="status"></p>
     </section>
@@ -248,13 +249,13 @@
       <div class="completion-wrap">
         <div class="completion-check" aria-hidden="true">✓</div>
         <p class="eyebrow" id="completion-label">Journey complete</p>
-        <h1>You’ve completed your guide</h1>
-        <p class="lede">Your Journey is marked complete in your personal record.</p>
+        <h1 data-i18n="completion.title">You’ve completed your guide</h1>
+        <p class="lede" data-i18n="completion.lede">Your Journey is marked complete in your personal record.</p>
         <div class="completion-list" id="completion-list"></div>
-        <p class="completion-disclaimer">This records your progress only. Check the official service for your application status.</p>
+        <p class="completion-disclaimer" data-i18n="completion.disclaimer">This records your progress only. Check the official service for your application status.</p>
         <div class="center-actions">
-          <button class="button primary" id="review-completed">Review my journey</button>
-          <button class="button secondary" id="completion-new">Start a new goal</button>
+          <button class="button primary" id="review-completed" data-i18n="completion.review_button">Review my journey</button>
+          <button class="button secondary" id="completion-new" data-i18n="common.start_new_goal">Start a new goal</button>
         </div>
       </div>
     </section>
@@ -264,23 +265,23 @@
     <img src="{% static 'demo/img/favicon.ico' %}" alt="" aria-hidden="true">
     <span>brdcrmbs</span>
     <span aria-hidden="true">•</span>
-    <span>Independent guidance. Not a government service.</span>
+    <span data-i18n="footer.disclaimer">Independent guidance. Not a government service.</span>
   </footer>
 
   <div class="modal-shell" id="goal-confirm-modal" hidden>
     <div class="modal-backdrop" data-close="goal-confirm-modal"></div>
     <section class="modal wide" role="dialog" aria-modal="true" aria-labelledby="confirm-goal-title">
-      <button class="modal-close" data-close="goal-confirm-modal" aria-label="Close">×</button>
-      <p class="eyebrow">Confirm your goal</p>
-      <h2 id="confirm-goal-title">Does this describe what you want to track?</h2>
-      <p class="modal-lede">Review your wording before we create the Journey.</p>
+      <button class="modal-close" data-close="goal-confirm-modal" aria-label="Close" data-i18n-aria-label="common.close_aria">×</button>
+      <p class="eyebrow" data-i18n="modal.confirm_goal.eyebrow">Confirm your goal</p>
+      <h2 id="confirm-goal-title" data-i18n="modal.confirm_goal.title">Does this describe what you want to track?</h2>
+      <p class="modal-lede" data-i18n="modal.confirm_goal.lede">Review your wording before we create the Journey.</p>
       <div class="choice selected">
         <span class="radio-dot"></span>
         <div><strong id="confirm-goal-text"></strong><p id="confirm-situation-text"></p></div>
       </div>
       <div class="modal-actions split">
-        <button class="button secondary" data-close="goal-confirm-modal">Back</button>
-        <button class="button primary" id="confirm-create">Build my guide <span aria-hidden="true">→</span></button>
+        <button class="button secondary" data-close="goal-confirm-modal" data-i18n="common.back">Back</button>
+        <button class="button primary" id="confirm-create" data-i18n-html="modal.confirm_goal.submit">Build my guide <span aria-hidden="true">→</span></button>
       </div>
     </section>
   </div>
@@ -288,46 +289,46 @@
   <div class="modal-shell" id="record-modal" hidden>
     <div class="modal-backdrop" data-close="record-modal"></div>
     <section class="modal wide" role="dialog" aria-modal="true" aria-labelledby="record-title">
-      <button class="modal-close" data-close="record-modal" aria-label="Close">×</button>
+      <button class="modal-close" data-close="record-modal" aria-label="Close" data-i18n-aria-label="common.close_aria">×</button>
       <div id="record-input-stage">
-        <div class="modal-title-row"><span class="question-orb" aria-hidden="true">+</span><div><p class="eyebrow">Add to your Journey</p><h2 id="record-title">What happened?</h2></div></div>
+        <div class="modal-title-row"><span class="question-orb" aria-hidden="true">+</span><div><p class="eyebrow" data-i18n="modal.record.eyebrow">Add to your Journey</p><h2 id="record-title" data-i18n="modal.record.title_default">What happened?</h2></div></div>
         <p class="context-chip" id="record-context"></p>
-        <label for="event-text">Describe it in your own words</label>
-        <textarea id="event-text" maxlength="4000" placeholder="I called IRCC today. They said it is still processing and told me not to submit another application."></textarea>
-        <p class="field-help">Your original words are always kept exactly as you wrote them.</p>
+        <label for="event-text" data-i18n="modal.record.field_label">Describe it in your own words</label>
+        <textarea id="event-text" maxlength="4000" placeholder="I called IRCC today. They said it is still processing and told me not to submit another application." data-i18n-placeholder="modal.record.placeholder"></textarea>
+        <p class="field-help" data-i18n="modal.record.field_help">Your original words are always kept exactly as you wrote them.</p>
         <div class="modal-actions split">
-          <button class="button secondary" id="save-note">Save as a plain note</button>
-          <button class="button primary" id="interpret-event">Review what I said <span aria-hidden="true">→</span></button>
+          <button class="button secondary" id="save-note" data-i18n="modal.record.save_note">Save as a plain note</button>
+          <button class="button primary" id="interpret-event" data-i18n-html="modal.record.review_cta">Review what I said <span aria-hidden="true">→</span></button>
         </div>
       </div>
 
       <div id="record-review-stage" hidden>
-        <p class="eyebrow">Confirm what happened</p>
-        <h2>Is this understanding right?</h2>
-        <p class="modal-lede">Nothing is added to your record until you confirm it.</p>
+        <p class="eyebrow" data-i18n="modal.record.review_eyebrow">Confirm what happened</p>
+        <h2 data-i18n="modal.record.review_title">Is this understanding right?</h2>
+        <p class="modal-lede" data-i18n="modal.record.review_lede">Nothing is added to your record until you confirm it.</p>
         <div class="choice selected"><span class="radio-dot"></span><div><strong id="draft-paraphrase"></strong><p id="draft-original"></p></div></div>
         <div class="draft-tags" id="draft-tags"></div>
         <p class="ai-source-line" id="draft-engine"></p>
         <div class="notice" id="draft-notice" hidden></div>
         <div class="modal-actions split">
-          <button class="button secondary" id="back-to-event">Back</button>
-          <div class="button-row"><button class="button secondary" id="edit-draft">Edit details</button><button class="button primary" id="confirm-event">Add to Journey <span aria-hidden="true">→</span></button></div>
+          <button class="button secondary" id="back-to-event" data-i18n="common.back">Back</button>
+          <div class="button-row"><button class="button secondary" id="edit-draft" data-i18n="modal.record.edit_details">Edit details</button><button class="button primary" id="confirm-event" data-i18n-html="modal.record.confirm_cta">Add to Journey <span aria-hidden="true">→</span></button></div>
         </div>
       </div>
 
       <form id="record-edit-stage" hidden>
-        <p class="eyebrow">Review details</p>
-        <h2 id="details-heading">Edit the event</h2>
+        <p class="eyebrow" data-i18n="modal.record.edit_eyebrow">Review details</p>
+        <h2 id="details-heading" data-i18n="modal.record.edit_title">Edit the event</h2>
         <div class="form-grid">
-          <div><label for="detail-title">Timeline label</label><input id="detail-title" maxlength="300" required></div>
-          <div><label for="detail-kind">Type</label><select id="detail-kind"><option value="INTERACTION">Interaction</option><option value="ACTION">Action</option><option value="STATUS_UPDATE">Status update</option><option value="DOCUMENT">Document</option><option value="SOURCE">Official source</option><option value="NOTE">Note</option></select></div>
-          <div><label for="detail-channel">Channel</label><select id="detail-channel"><option value="UNKNOWN">Not specified</option><option value="PHONE">Phone</option><option value="EMAIL">Email</option><option value="IN_PERSON">In person</option><option value="WEB">Website</option><option value="LETTER">Letter</option><option value="UPLOAD">Upload</option><option value="OTHER">Other</option></select></div>
-          <div><label for="detail-org">Organization</label><select id="detail-org"></select></div>
-          <div><label for="detail-status">Reported status</label><select id="detail-status"><option value="UNKNOWN">Not specified</option><option value="SUBMITTED">Submitted</option><option value="RECEIVED">Received</option><option value="PROCESSING">Processing</option><option value="UNDER_REVIEW">Under review</option><option value="INCOMPLETE">Incomplete</option><option value="ADDITIONAL_INFO_REQUIRED">More information required</option><option value="APPROVED">Approved</option><option value="REFUSED">Refused</option><option value="RESOLVED">Resolved</option></select></div>
-          <div><label for="detail-date">Date</label><input type="date" id="detail-date"></div>
+          <div><label for="detail-title" data-i18n="modal.record.field_title_label">Timeline label</label><input id="detail-title" maxlength="300" required></div>
+          <div><label for="detail-kind" data-i18n="modal.record.field_type_label">Type</label><select id="detail-kind"></select></div>
+          <div><label for="detail-channel" data-i18n="modal.record.field_channel_label">Channel</label><select id="detail-channel"></select></div>
+          <div><label for="detail-org" data-i18n="modal.record.field_org_label">Organization</label><select id="detail-org"></select></div>
+          <div><label for="detail-status" data-i18n="modal.record.field_status_label">Reported status</label><select id="detail-status"></select></div>
+          <div><label for="detail-date" data-i18n="modal.record.field_date_label">Date</label><input type="date" id="detail-date"></div>
         </div>
-        <label for="detail-instruction">Instruction you received</label><input id="detail-instruction" maxlength="500">
-        <div class="modal-actions split"><button class="button danger" type="button" id="delete-event" hidden>Delete event</button><div class="button-row"><button class="button secondary" type="button" id="cancel-details">Cancel</button><button class="button primary" type="submit">Save details</button></div></div>
+        <label for="detail-instruction" data-i18n="modal.record.field_instruction_label">Instruction you received</label><input id="detail-instruction" maxlength="500">
+        <div class="modal-actions split"><button class="button danger" type="button" id="delete-event" hidden data-i18n="modal.record.delete_button">Delete event</button><div class="button-row"><button class="button secondary" type="button" id="cancel-details" data-i18n="common.cancel">Cancel</button><button class="button primary" type="submit" data-i18n="modal.record.save_button">Save details</button></div></div>
       </form>
     </section>
   </div>
@@ -335,15 +336,15 @@
   <div class="modal-shell" id="guide-step-modal" hidden>
     <div class="modal-backdrop" data-close="guide-step-modal"></div>
     <section class="modal wide" role="dialog" aria-modal="true" aria-labelledby="guide-step-title">
-      <button class="modal-close" data-close="guide-step-modal" aria-label="Close">×</button>
-      <p class="eyebrow" id="guide-step-position">Guide step</p>
+      <button class="modal-close" data-close="guide-step-modal" aria-label="Close" data-i18n-aria-label="common.close_aria">×</button>
+      <p class="eyebrow" id="guide-step-position" data-i18n="modal.guide_step.eyebrow_default">Guide step</p>
       <h2 id="guide-step-title"></h2>
       <p class="modal-lede" id="guide-step-description"></p>
       <div class="step-source" id="guide-step-source" hidden></div>
-      <div class="saved-place"><span aria-hidden="true">✓</span><div><strong>Guidance is separate from your record</strong><p>This step changes only when you record what happened or explicitly mark it complete.</p></div></div>
+      <div class="saved-place"><span aria-hidden="true">✓</span><div><strong data-i18n="modal.guide_step.note_title">Guidance is separate from your record</strong><p data-i18n="modal.guide_step.note_body">This step changes only when you record what happened or explicitly mark it complete.</p></div></div>
       <div class="modal-actions split">
-        <button class="button secondary" id="record-guide-step">Record what happened</button>
-        <button class="button primary" id="complete-guide-step">Mark step complete <span aria-hidden="true">→</span></button>
+        <button class="button secondary" id="record-guide-step" data-i18n="common.record_what_happened">Record what happened</button>
+        <button class="button primary" id="complete-guide-step" data-i18n-html="modal.guide_step.complete_cta">Mark step complete <span aria-hidden="true">→</span></button>
       </div>
     </section>
   </div>
@@ -351,20 +352,20 @@
   <div class="modal-shell" id="help-modal" hidden>
     <div class="modal-backdrop" data-close="help-modal"></div>
     <section class="modal wide" role="dialog" aria-modal="true" aria-labelledby="help-title">
-      <button class="modal-close" data-close="help-modal" aria-label="Close">×</button>
-      <div class="modal-title-row"><span class="question-orb" aria-hidden="true">?</span><div><p class="eyebrow">Recovery guide</p><h2 id="help-title">Let’s work through this</h2></div></div>
+      <button class="modal-close" data-close="help-modal" aria-label="Close" data-i18n-aria-label="common.close_aria">×</button>
+      <div class="modal-title-row"><span class="question-orb" aria-hidden="true">?</span><div><p class="eyebrow" data-i18n="modal.help.eyebrow">Recovery guide</p><h2 id="help-title" data-i18n="modal.help.title">Let’s work through this</h2></div></div>
       <p class="context-chip" id="help-context"></p>
       <div class="help-summary" id="help-summary"></div>
-      <div class="saved-place"><span>⌑</span><div><strong>Your place is saved</strong><p>Close this window to return to the same Journey and timeline.</p></div></div>
-      <div class="modal-actions split"><button class="button secondary" data-close="help-modal">Return to Journey</button><button class="button primary" id="help-record">Record what happened <span aria-hidden="true">→</span></button></div>
+      <div class="saved-place"><span aria-hidden="true">⌑</span><div><strong data-i18n="modal.help.note_title">Your place is saved</strong><p data-i18n="modal.help.note_body">Close this window to return to the same Journey and timeline.</p></div></div>
+      <div class="modal-actions split"><button class="button secondary" data-close="help-modal" data-i18n="modal.help.return_button">Return to Journey</button><button class="button primary" id="help-record" data-i18n-html="journey.record_cta">Record what happened <span aria-hidden="true">→</span></button></div>
     </section>
   </div>
 
   <div class="modal-shell" id="info-modal" hidden>
     <div class="modal-backdrop" data-close="info-modal"></div>
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="info-title">
-      <button class="modal-close" data-close="info-modal" aria-label="Close">×</button>
-      <p class="eyebrow" id="info-eyebrow">Journey information</p>
+      <button class="modal-close" data-close="info-modal" aria-label="Close" data-i18n-aria-label="common.close_aria">×</button>
+      <p class="eyebrow" id="info-eyebrow" data-i18n="modal.info.default_eyebrow">Journey information</p>
       <h2 id="info-title"></h2>
       <div id="info-content"></div>
     </section>
@@ -373,18 +374,18 @@
   <div class="modal-shell" id="account-modal" hidden>
     <div class="modal-backdrop" data-close="account-modal"></div>
     <section class="modal compact-modal" role="dialog" aria-modal="true" aria-labelledby="account-title">
-      <button class="modal-close" data-close="account-modal" aria-label="Close">×</button>
-      <p class="eyebrow">Save your work</p><h2 id="account-title">Sign in with Google</h2>
-      <p>Your guest Journey is temporary. Auth0 securely handles Google sign-in; brdcrmbs keeps control of your Journey.</p>
-      <button class="button primary full" id="auth-login">Sign in with Google <span aria-hidden="true">→</span></button>
+      <button class="modal-close" data-close="account-modal" aria-label="Close" data-i18n-aria-label="common.close_aria">×</button>
+      <p class="eyebrow" data-i18n="modal.account.eyebrow">Save your work</p><h2 id="account-title" data-i18n="modal.account.title">Sign in with Google</h2>
+      <p data-i18n="modal.account.body">Your guest Journey is temporary. Auth0 securely handles Google sign-in; brdcrmbs keeps control of your Journey.</p>
+      <button class="button primary full" id="auth-login" data-i18n-html="modal.account.cta">Sign in with Google <span aria-hidden="true">→</span></button>
     </section>
   </div>
 
   <div class="modal-shell" id="confirm-modal" hidden>
     <div class="modal-backdrop" id="confirm-modal-backdrop"></div>
     <section class="modal compact-modal" role="alertdialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-message">
-      <button class="modal-close" id="confirm-modal-close" aria-label="Close">×</button>
-      <p class="eyebrow">Please confirm</p>
+      <button class="modal-close" id="confirm-modal-close" aria-label="Close" data-i18n-aria-label="common.close_aria">×</button>
+      <p class="eyebrow" data-i18n="modal.confirm.eyebrow">Please confirm</p>
       <h2 id="confirm-modal-title"></h2>
       <p id="confirm-modal-message"></p>
       <div class="modal-actions split">
@@ -397,6 +398,7 @@
   <div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
 
   <script src="https://cdn.auth0.com/js/auth0-spa-js/2.1/auth0-spa-js.production.js" defer></script>
+  <script src="{% static 'demo/i18n.js' %}" defer></script>
   <script src="{% static 'demo/app.js' %}" defer></script>
 </body>
 </html>

@@ -11,6 +11,8 @@ import logging
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import Http404
+from django.utils.translation import gettext as _
+from django.utils.translation import ngettext
 from rest_framework import status
 from rest_framework.exceptions import APIException, PermissionDenied, Throttled
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -59,7 +61,7 @@ class ApiError(APIException):
         suggested_action=None,
         extra=None,
     ):
-        self.detail = message or "Something went wrong."
+        self.detail = message or _("Something went wrong.")
         if code is not None:
             self.code = code
         if status_code is not None:
@@ -89,7 +91,7 @@ class AIUnavailable(ApiError):
 
     def __init__(self, message=None, **kwargs):
         super().__init__(
-            message or "I couldn't organize this automatically right now.", **kwargs
+            message or _("I couldn't organize this automatically right now."), **kwargs
         )
 
 
@@ -112,8 +114,12 @@ class JourneyLimitExceeded(ApiError):
 
     def __init__(self, limit):
         super().__init__(
-            f"You can have up to {limit} active Journey"
-            + ("." if limit == 1 else "s."),
+            ngettext(
+                "You can have up to %(limit)s active Journey.",
+                "You can have up to %(limit)s active Journeys.",
+                limit,
+            )
+            % {"limit": limit},
             extra={"limit": limit},
         )
 
@@ -126,8 +132,12 @@ class GuestMigrationBlocked(ApiError):
 
     def __init__(self, limit):
         super().__init__(
-            "Your guest Journey is still safe, but your account is already at "
-            f"the {limit}-Journey limit. Archive or complete one and try again.",
+            _(
+                "Your guest Journey is still safe, but your account is already "
+                "at the %(limit)s-Journey limit. Archive or complete one and "
+                "try again."
+            )
+            % {"limit": limit},
             extra={"limit": limit, "guest_data_preserved": True},
         )
 
@@ -145,7 +155,7 @@ def api_exception_handler(exc, context):
     if isinstance(exc, Http404):
         return Response(
             ApiError(
-                "We couldn't find that.",
+                _("We couldn't find that."),
                 code=ErrorCode.NOT_FOUND,
                 status_code=status.HTTP_404_NOT_FOUND,
                 recoverable=False,
@@ -158,9 +168,8 @@ def api_exception_handler(exc, context):
         wait = int(exc.wait or 0)
         return Response(
             ApiError(
-                "You have made a lot of requests. Please try again in "
-                + str(wait)
-                + " seconds.",
+                _("You have made a lot of requests. Please try again in %(wait)s seconds.")
+                % {"wait": wait},
                 code=ErrorCode.AI_RATE_LIMITED,
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 recoverable=True,
@@ -173,7 +182,7 @@ def api_exception_handler(exc, context):
     if isinstance(exc, PermissionDenied):
         return Response(
             ApiError(
-                "You do not have access to that.",
+                _("You do not have access to that."),
                 code=ErrorCode.FORBIDDEN,
                 status_code=status.HTTP_403_FORBIDDEN,
                 recoverable=False,
@@ -186,7 +195,7 @@ def api_exception_handler(exc, context):
         detail = getattr(exc, "detail", None) or getattr(exc, "messages", None)
         return Response(
             ApiError(
-                "Some of that information was not valid.",
+                _("Some of that information was not valid."),
                 code=ErrorCode.VALIDATION_ERROR,
                 status_code=status.HTTP_400_BAD_REQUEST,
                 extra={"fields": detail},
@@ -198,7 +207,7 @@ def api_exception_handler(exc, context):
     if response is not None:
         return Response(
             ApiError(
-                "That request could not be completed.",
+                _("That request could not be completed."),
                 code=ErrorCode.VALIDATION_ERROR,
                 status_code=response.status_code,
             ).to_payload(),
@@ -208,7 +217,7 @@ def api_exception_handler(exc, context):
     logger.exception("Unhandled exception in %s", context.get("view"))
     return Response(
         ApiError(
-            "Something went wrong on our side.",
+            _("Something went wrong on our side."),
             code=ErrorCode.INTERNAL_ERROR,
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             recoverable=True,

@@ -18,32 +18,115 @@
   };
   let confirmResolveFn = null;
 
-  const STATUS_LABELS = {
-    ACTIVE: "Active",
-    WAITING: "Waiting",
-    ACTION_REQUIRED: "Action needed",
-    COMPLETED: "Complete",
-    ARCHIVED: "Archived",
-  };
-  const SOURCE_LABELS = {
-    USER_REPORTED: "Recorded by you",
-    OFFICIAL: "Official source",
-    COMMUNITY: "Community source",
-    AI_INTERPRETATION: "AI interpretation",
-  };
-  const KIND_LABELS = {
-    INTERACTION: "Interaction",
-    ACTION: "Action",
-    STATUS_UPDATE: "Status update",
-    DOCUMENT: "Document",
-    SOURCE: "Official source",
-    NOTE: "Note",
-  };
-  const GUIDE_STATUS_LABELS = {
-    NOT_STARTED: "Not started",
-    IN_PROGRESS: "In progress",
-    COMPLETED: "Complete",
-  };
+  // ---------------------------------------------------------------------
+  // i18n. window.I18N (demo/static/demo/i18n.js) holds locale-keyed string
+  // dictionaries; this is the small runtime that applies them. The active
+  // locale is also mirrored to the backend (see syncLocaleWithBackend) so
+  // AI-generated content and server-side error messages match it too.
+  // ---------------------------------------------------------------------
+  const LOCALE_STORAGE_KEY = "brdcrmbs_locale";
+  let currentLocale = (function () {
+    try {
+      const stored = localStorage.getItem(LOCALE_STORAGE_KEY);
+      return stored === "fr" ? "fr" : "en";
+    } catch (error) {
+      return "en";
+    }
+  })();
+
+  function t(key, vars) {
+    const dict = (window.I18N && window.I18N[currentLocale]) || {};
+    const fallback = (window.I18N && window.I18N.en) || {};
+    let str = Object.prototype.hasOwnProperty.call(dict, key) ? dict[key] : fallback[key];
+    if (str == null) return key;
+    if (vars) {
+      Object.keys(vars).forEach((name) => {
+        str = str.replaceAll("{" + name + "}", vars[name]);
+      });
+    }
+    return str;
+  }
+
+  function plural(count, oneKey, otherKey) {
+    // CLDR "one" category: French treats both 0 and 1 as singular; English
+    // treats only 1 as singular. Every call site here only ever hits this
+    // with n >= 0, so that's the full rule we need.
+    const isOne = currentLocale === "fr" ? count === 0 || count === 1 : count === 1;
+    return t(isOne ? oneKey : otherKey, { n: count });
+  }
+
+  function enumLabel(category, code) {
+    if (!code) return code;
+    const key = "enum." + category + "." + code;
+    const label = t(key);
+    return label === key ? code : label;
+  }
+
+  function applyI18nToDOM(root) {
+    const scope = root || document;
+    scope.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.getAttribute("data-i18n")); });
+    scope.querySelectorAll("[data-i18n-html]").forEach((el) => { el.innerHTML = t(el.getAttribute("data-i18n-html")); });
+    scope.querySelectorAll("[data-i18n-placeholder]").forEach((el) => { el.placeholder = t(el.getAttribute("data-i18n-placeholder")); });
+    scope.querySelectorAll("[data-i18n-aria-label]").forEach((el) => { el.setAttribute("aria-label", t(el.getAttribute("data-i18n-aria-label"))); });
+    scope.querySelectorAll("[data-i18n-alt]").forEach((el) => { el.alt = t(el.getAttribute("data-i18n-alt")); });
+    scope.querySelectorAll("[data-i18n-content]").forEach((el) => { el.setAttribute("content", t(el.getAttribute("data-i18n-content"))); });
+  }
+
+  function updateLangToggle() {
+    const toggle = $("lang-toggle");
+    if (toggle) toggle.textContent = currentLocale === "en" ? "FR" : "EN";
+  }
+
+  function optionsHTML(category, codes) {
+    return codes.map((code) => `<option value="${code}">${escapeHTML(enumLabel(category, code))}</option>`).join("");
+  }
+
+  function populateEnumSelects() {
+    const kindSelect = $("detail-kind");
+    const kindValue = kindSelect.value;
+    kindSelect.innerHTML = optionsHTML("kind", ["INTERACTION", "ACTION", "STATUS_UPDATE", "DOCUMENT", "SOURCE", "NOTE"]);
+    if (kindValue) kindSelect.value = kindValue;
+
+    const channelSelect = $("detail-channel");
+    const channelValue = channelSelect.value;
+    channelSelect.innerHTML = optionsHTML("channel", ["UNKNOWN", "PHONE", "EMAIL", "IN_PERSON", "WEB", "LETTER", "UPLOAD", "OTHER"]);
+    if (channelValue) channelSelect.value = channelValue;
+
+    const statusSelect = $("detail-status");
+    const statusValue = statusSelect.value;
+    statusSelect.innerHTML = optionsHTML("reported_status", [
+      "UNKNOWN", "SUBMITTED", "RECEIVED", "PROCESSING", "UNDER_REVIEW",
+      "INCOMPLETE", "ADDITIONAL_INFO_REQUIRED", "APPROVED", "REFUSED", "RESOLVED",
+    ]);
+    if (statusValue) statusSelect.value = statusValue;
+  }
+
+  function applyLocaleToUI() {
+    document.documentElement.lang = currentLocale;
+    applyI18nToDOM();
+    updateLangToggle();
+    populateEnumSelects();
+    populateOrganizationSelect();
+    renderSidebar();
+    if (state.current) renderJourney();
+  }
+
+  async function syncLocaleWithBackend() {
+    try {
+      await api("/i18n/set-language/", { method: "POST", body: JSON.stringify({ language: currentLocale }) });
+    } catch (error) {
+      // Non-fatal: the UI is already in the right language locally, and the
+      // next successful request will carry the cookie once connectivity or
+      // CSRF state recovers.
+    }
+  }
+
+  async function setLocale(locale) {
+    currentLocale = locale === "fr" ? "fr" : "en";
+    try { localStorage.setItem(LOCALE_STORAGE_KEY, currentLocale); } catch (error) { /* private browsing, etc. */ }
+    applyLocaleToUI();
+    await syncLocaleWithBackend();
+  }
 
   function escapeHTML(value) {
     const node = document.createElement("div");
@@ -52,10 +135,10 @@
   }
 
   function formatDate(value) {
-    if (!value) return "Date not specified";
+    if (!value) return t("common.date_unspecified");
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return String(value);
-    return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+    return date.toLocaleDateString(currentLocale === "fr" ? "fr-CA" : "en-CA", { year: "numeric", month: "short", day: "numeric" });
   }
 
   function today() {
@@ -79,7 +162,7 @@
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
       const error = body.error || {};
-      const failure = new Error(error.message || "That request could not be completed.");
+      const failure = new Error(error.message || t("toast.request_failed"));
       failure.code = error.code || "REQUEST_FAILED";
       failure.body = body;
       failure.status = response.status;
@@ -103,12 +186,12 @@
 
   function confirmModal(options) {
     const opts = options || {};
-    $("confirm-modal-title").textContent = opts.title || "Please confirm";
+    $("confirm-modal-title").textContent = opts.title || t("modal.confirm.default_title");
     $("confirm-modal-message").textContent = opts.message || "";
     const confirmButton = $("confirm-modal-confirm");
-    confirmButton.textContent = opts.confirmLabel || "Confirm";
+    confirmButton.textContent = opts.confirmLabel || t("common.confirm");
     confirmButton.className = opts.danger ? "button danger" : "button primary";
-    $("confirm-modal-cancel").textContent = opts.cancelLabel || "Cancel";
+    $("confirm-modal-cancel").textContent = opts.cancelLabel || t("common.cancel");
     openModal("confirm-modal");
     return new Promise((resolve) => { confirmResolveFn = resolve; });
   }
@@ -157,8 +240,6 @@
   }
 
   async function setupAuth() {
-    const csrfResponse = await fetch(API + "/auth/csrf/", { credentials: "include" });
-    state.csrfToken = (await csrfResponse.json()).csrf_token || "";
     const config = await fetch(API + "/auth/config/", { credentials: "include" }).then((r) => r.json());
     if (config.enabled && window.auth0 && typeof window.auth0.createAuth0Client === "function") {
       state.auth0 = await window.auth0.createAuth0Client({
@@ -172,7 +253,7 @@
       });
       if (location.search.includes("error=")) {
         const params = new URLSearchParams(location.search);
-        toast(params.get("error_description") || "Sign-in with Google could not be completed.");
+        toast(params.get("error_description") || t("toast.signin_failed"));
         history.replaceState({}, document.title, location.pathname);
       } else if (location.search.includes("code=") && location.search.includes("state=")) {
         await state.auth0.handleRedirectCallback();
@@ -182,7 +263,7 @@
         state.accessToken = await state.auth0.getTokenSilently();
         try {
           const migrated = await api("/auth/migrate-guest/", { method: "POST", body: "{}" });
-          if (migrated.status === "migrated" && migrated.migrated_count) toast("Your guest Journey is now saved to your account.");
+          if (migrated.status === "migrated" && migrated.migrated_count) toast(t("toast.guest_migrated"));
         } catch (error) {
           if (error.code === "GUEST_MIGRATION_BLOCKED") toast(error.message);
         }
@@ -196,10 +277,10 @@
   function relativeDay(value) {
     if (!value) return "";
     const diffDays = Math.round((Date.now() - new Date(value).getTime()) / 86400000);
-    if (diffDays <= 0) return "Updated today";
-    if (diffDays === 1) return "Updated yesterday";
-    if (diffDays < 7) return `Updated ${diffDays} days ago`;
-    return "Updated " + formatDate(value);
+    if (diffDays <= 0) return t("date.updated_today");
+    if (diffDays === 1) return t("date.updated_yesterday");
+    if (diffDays < 7) return t("date.updated_days_ago", { n: diffDays });
+    return t("date.updated_on", { date: formatDate(value) });
   }
 
   const ACTIVE_STATUSES = ["ACTIVE", "WAITING", "ACTION_REQUIRED"];
@@ -218,7 +299,7 @@
       button.innerHTML = `
         <strong>${escapeHTML(journey.title)}</strong>
         ${goalSnippet ? `<span class="sidebar-goal">${goalSnippet}</span>` : ""}
-        <small><span class="status-pill ${escapeHTML(journey.status)}">${escapeHTML(STATUS_LABELS[journey.status] || journey.status)}</span> ${escapeHTML(relativeDay(journey.updated_at))}</small>`;
+        <small><span class="status-pill ${escapeHTML(journey.status)}">${escapeHTML(enumLabel("status", journey.status))}</span> ${escapeHTML(relativeDay(journey.updated_at))}</small>`;
       button.addEventListener("click", async () => { closeSidebar(); await selectJourney(journey.id); });
       li.appendChild(button);
       list.appendChild(li);
@@ -228,7 +309,7 @@
     if (quota) {
       const activeCount = state.journeys.filter((journey) => ACTIVE_STATUSES.includes(journey.status)).length;
       const limit = state.journeyLimit;
-      quota.textContent = limit ? `${activeCount} of ${limit} active journeys used` : "";
+      quota.textContent = limit ? t("sidebar.quota", { count: activeCount, limit }) : "";
       quota.hidden = !limit;
     }
   }
@@ -254,15 +335,17 @@
     $("journey-title").textContent = journey.title;
     $("journey-goal").textContent = journey.goal;
     $("current-state").textContent = journey.state.current_state;
-    $("next-action").textContent = journey.state.next_action || "No next action has been recorded.";
+    $("next-action").textContent = journey.state.next_action || t("journey.no_next_action");
     const status = $("status-pill");
     status.className = "status-pill " + journey.state.status;
-    status.textContent = STATUS_LABELS[journey.state.status] || journey.state.status;
+    status.textContent = enumLabel("status", journey.state.status);
     const count = (journey.timeline || []).length;
-    $("record-count").textContent = count + (count === 1 ? " recorded event" : " recorded events");
+    $("record-count").textContent = plural(count, "journey.recorded_events_one", "journey.recorded_events_other");
     const source = journey.state.source || {};
-    $("state-source").textContent = source.type ? (SOURCE_LABELS[source.type] || source.type) + " • derived from your confirmed timeline" : "Derived from confirmed records only";
-    $("record-context").textContent = journey.title + " • " + (STATUS_LABELS[journey.state.status] || journey.state.status);
+    $("state-source").textContent = source.type
+      ? t("journey.state_source_known", { source: enumLabel("source", source.type) })
+      : t("journey.state_source_unknown");
+    $("record-context").textContent = t("journey.record_context", { title: journey.title, status: enumLabel("status", journey.state.status) });
     renderGuide();
 
     const timeline = $("timeline-list");
@@ -276,7 +359,7 @@
       li.innerHTML = `
         <span class="step-orb">${rows.length - index}</span>
         <div class="timeline-copy"><strong>${escapeHTML(row.title)}</strong><p>${escapeHTML(formatDate(row.occurred_at))}${row.organization_display ? " • " + escapeHTML(row.organization_display) : ""}</p></div>
-        <span class="event-status">${escapeHTML(KIND_LABELS[row.kind] || row.kind)}</span><span class="chevron">›</span>`;
+        <span class="event-status">${escapeHTML(enumLabel("kind", row.kind))}</span><span class="chevron">›</span>`;
       const open = () => openExistingEvent(row.id);
       li.addEventListener("click", open);
       li.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(); } });
@@ -289,11 +372,11 @@
     const list = $("guide-step-list");
     list.innerHTML = "";
     if (!guide) {
-      $("guide-summary").textContent = "No suggested guide is available for this Journey yet.";
-      $("guide-progress-label").textContent = "0 of 0 steps complete";
+      $("guide-summary").textContent = t("journey.no_guide");
+      $("guide-progress-label").textContent = t("journey.steps_complete", { completed: 0, total: 0 });
       $("guide-progress-bar").style.width = "0%";
       $("guide-clarification").hidden = true;
-      $("guide-engine").textContent = "No generator recorded";
+      $("guide-engine").textContent = t("journey.no_generator");
       return;
     }
     const steps = guide.steps || [];
@@ -301,16 +384,16 @@
     $("guide-summary").textContent = guide.summary;
     const usedGemini = guide.generated_by === "gemini";
     $("guide-engine").textContent = usedGemini
-      ? "Generated with Gemini AI"
-      : "Generic rules-based fallback • no Gemini output";
+      ? t("journey.engine_gemini")
+      : t("journey.engine_fallback");
     $("guide-engine").title = usedGemini
-      ? "This saved guide was produced by the configured Gemini model."
-      : "Gemini was not used for this guide. The fallback is deliberately generic and should not be treated as case-specific guidance.";
-    $("guide-progress-label").textContent = `${completed} of ${steps.length} steps complete`;
+      ? t("journey.engine_gemini_title")
+      : t("journey.engine_fallback_title");
+    $("guide-progress-label").textContent = t("journey.steps_complete", { completed, total: steps.length });
     $("guide-progress-bar").style.width = steps.length ? `${Math.round((completed / steps.length) * 100)}%` : "0%";
     const clarification = $("guide-clarification");
     clarification.hidden = !guide.needs_clarification;
-    clarification.textContent = guide.needs_clarification ? `One detail will improve this guide: ${guide.clarification_question}` : "";
+    clarification.textContent = guide.needs_clarification ? t("journey.clarification_prefix", { question: guide.clarification_question }) : "";
     steps.forEach((step) => {
       const li = document.createElement("li");
       const button = document.createElement("button");
@@ -319,7 +402,7 @@
       button.innerHTML = `
         <span class="step-orb ${step.status === "COMPLETED" ? "complete" : ""}">${step.position}</span>
         <span class="guide-step-copy"><strong>${escapeHTML(step.title)}</strong><p>${escapeHTML(step.description)}</p></span>
-        <span class="guide-step-status ${escapeHTML(step.status)}">${escapeHTML(GUIDE_STATUS_LABELS[step.status] || step.status)}</span>
+        <span class="guide-step-status ${escapeHTML(step.status)}">${escapeHTML(enumLabel("guide_status", step.status))}</span>
         <span class="chevron">›</span>`;
       button.addEventListener("click", () => openGuideStep(step));
       li.appendChild(button);
@@ -342,7 +425,7 @@
       const host = new URL(url).hostname.replace(/^www\./, "");
       return host.endsWith("canada.ca") ? "Canada.ca" : host.endsWith("ontario.ca") ? "Ontario.ca" : host;
     } catch (error) {
-      return "Official source";
+      return t("source.default_name");
     }
   }
 
@@ -354,16 +437,16 @@
     }
     container.hidden = false;
     const siteName = (organization && (organization.short_name || organization.name)) || siteNameFor(source.url);
-    const verified = source.verified_at ? `Link checked ${formatDate(source.verified_at)}` : "Curated official source";
+    const verified = source.verified_at ? t("date.link_checked", { date: formatDate(source.verified_at) }) : t("date.curated_source");
     const freshnessWarning = source.current_status && source.current_status !== "VERIFIED"
-      ? `<p class="source-warning">This official page has changed or is unavailable. The excerpt below is the version used when this guide was created.</p>`
+      ? `<p class="source-warning">${escapeHTML(t("source.changed_warning"))}</p>`
       : "";
     container.innerHTML = `
       <div class="source-preview">
         <p class="source-eyebrow">${escapeHTML(siteName)} • ${escapeHTML(source.title)}</p>
         <strong>${escapeHTML(source.section_heading || source.title)}</strong>
         ${freshnessWarning}
-        <p>${escapeHTML(source.description || "Check the current official instructions before acting.")}</p>
+        <p>${escapeHTML(source.description || t("source.check_current"))}</p>
         <a href="${escapeHTML(source.url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(source.url)}</a>
         <span class="source-verified">${escapeHTML(verified)}</span>
       </div>`;
@@ -371,12 +454,16 @@
 
   function openGuideStep(step) {
     state.activeGuideStep = step;
-    $("guide-step-position").textContent = `Step ${step.position} of ${(state.current.guide.steps || []).length} • ${GUIDE_STATUS_LABELS[step.status] || step.status}`;
+    $("guide-step-position").textContent = t("journey.step_position", {
+      position: step.position,
+      total: (state.current.guide.steps || []).length,
+      status: enumLabel("guide_status", step.status),
+    });
     $("guide-step-title").textContent = step.title;
     $("guide-step-description").textContent = step.description;
     renderSourceCard($("guide-step-source"), step.official_source, step.organization);
     $("complete-guide-step").disabled = step.status === "COMPLETED";
-    $("complete-guide-step").textContent = step.status === "COMPLETED" ? "Step complete" : "Mark step complete →";
+    $("complete-guide-step").textContent = step.status === "COMPLETED" ? t("journey.step_complete_label") : t("journey.mark_step_complete");
     openModal("guide-step-modal");
   }
 
@@ -389,7 +476,7 @@
     completedSteps.forEach((step) => {
       const div = document.createElement("div");
       div.className = "completion-row";
-      div.innerHTML = `<span>✓</span><strong>${escapeHTML(step.title)}</strong>`;
+      div.innerHTML = `<span aria-hidden="true">✓</span><strong>${escapeHTML(step.title)}</strong>`;
       list.appendChild(div);
     });
     showScreen("completion");
@@ -425,14 +512,21 @@
     $("record-review-stage").hidden = true;
     $("record-edit-stage").hidden = true;
     $("delete-event").hidden = true;
-    $("details-heading").textContent = "Edit the event";
+    $("details-heading").textContent = t("modal.record.edit_title");
   }
 
   function openRecordModal(guideStep) {
     resetRecordModal();
     state.activeGuideStep = guideStep || null;
-    if (guideStep) $("record-context").textContent = `${state.current.title} • Guide step ${guideStep.position}: ${guideStep.title}`;
-    else $("record-context").textContent = state.current.title + " • " + (STATUS_LABELS[state.current.state.status] || state.current.state.status);
+    if (guideStep) {
+      $("record-context").textContent = t("journey.record_context_step", {
+        title: state.current.title, position: guideStep.position, step: guideStep.title,
+      });
+    } else {
+      $("record-context").textContent = t("journey.record_context", {
+        title: state.current.title, status: enumLabel("status", state.current.state.status),
+      });
+    }
     openModal("record-modal");
     $("event-text").focus();
   }
@@ -450,9 +544,9 @@
   function showDraft(draft, rawText, meta) {
     state.draft = draft;
     state.rawText = rawText;
-    $("draft-paraphrase").textContent = draft.paraphrase || draft.title || "Review the details before saving.";
-    $("draft-original").textContent = "You said: “" + rawText + "”";
-    const tags = [KIND_LABELS[draft.kind] || draft.kind, draft.channel !== "UNKNOWN" ? draft.channel.replaceAll("_", " ") : "", draft.organization || ""].filter(Boolean);
+    $("draft-paraphrase").textContent = draft.paraphrase || draft.title || t("modal.record.review_placeholder");
+    $("draft-original").textContent = t("modal.record.you_said", { text: rawText });
+    const tags = [enumLabel("kind", draft.kind), draft.channel && draft.channel !== "UNKNOWN" ? enumLabel("channel", draft.channel) : "", draft.organization || ""].filter(Boolean);
     $("draft-tags").innerHTML = tags.map((tag) => `<span>${escapeHTML(tag)}</span>`).join("");
     const usedGemini = meta && meta.extractor === "gemini";
     $("draft-engine").textContent = usedGemini
@@ -460,7 +554,7 @@
       : "Interpretation source: rules-based fallback (no Gemini output used)";
     const notice = $("draft-notice");
     notice.hidden = !(draft.needs_clarification || (meta && meta.degraded));
-    notice.textContent = draft.needs_clarification ? (draft.clarification_question || "Please review the details carefully.") : "Automatic interpretation was unavailable, so a rules-based draft was prepared.";
+    notice.textContent = draft.needs_clarification ? (draft.clarification_question || t("modal.record.review_carefully")) : t("modal.record.degraded_notice");
     $("record-input-stage").hidden = true;
     $("record-review-stage").hidden = false;
   }
@@ -483,7 +577,7 @@
     return {
       kind: draft.kind,
       channel: draft.channel,
-      title: draft.title || "Recorded event",
+      title: draft.title || t("journey.default_event_title"),
       raw_text: state.rawText,
       organization_name: draft.organization || "",
       occurred_on: draft.occurred_on || today(),
@@ -504,7 +598,7 @@
     try {
       const result = await api(`/journeys/${state.current.id}/breadcrumbs/`, { method: "POST", body: JSON.stringify(draftPayload()) });
       closeModal("record-modal");
-      await refreshCurrent(result.change ? result.change.message : "Added to your Journey.");
+      await refreshCurrent(result.change ? result.change.message : t("toast.added_to_journey"));
     } catch (error) { toast(error.message); }
     finally { button.disabled = false; }
   }
@@ -517,7 +611,7 @@
     try {
       const result = await api(`/journeys/${state.current.id}/notes/`, { method: "POST", body: JSON.stringify({ text, guide_step_id: state.activeGuideStep ? state.activeGuideStep.id : null, request_id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) }) });
       closeModal("record-modal");
-      await refreshCurrent(result.change ? result.change.message : "Note saved.");
+      await refreshCurrent(result.change ? result.change.message : t("toast.note_saved"));
     } catch (error) { toast(error.message); }
     finally { button.disabled = false; }
   }
@@ -531,7 +625,7 @@
     $("record-input-stage").hidden = true;
     $("record-edit-stage").hidden = false;
     $("delete-event").hidden = false;
-    $("details-heading").textContent = "Review recorded event";
+    $("details-heading").textContent = t("modal.record.review_recorded_title");
     openModal("record-modal");
   }
 
@@ -547,12 +641,12 @@
       if (state.editing) {
         const result = await api(`/breadcrumbs/${state.editing.id}/`, { method: "PATCH", body: JSON.stringify(payload) });
         closeModal("record-modal");
-        await refreshCurrent(result.change ? result.change.message : "Event updated.");
+        await refreshCurrent(result.change ? result.change.message : t("toast.event_updated"));
       } else {
         const full = Object.assign(draftPayload(), payload);
         const result = await api(`/journeys/${state.current.id}/breadcrumbs/`, { method: "POST", body: JSON.stringify(full) });
         closeModal("record-modal");
-        await refreshCurrent(result.change ? result.change.message : "Event saved.");
+        await refreshCurrent(result.change ? result.change.message : t("toast.event_saved"));
       }
     } catch (error) { toast(error.message); }
   }
@@ -560,31 +654,31 @@
   async function deleteEvent() {
     if (!state.editing) return;
     const confirmed = await confirmModal({
-      title: "Remove this event?",
-      message: "This removes it from your Journey record. This can't be undone.",
-      confirmLabel: "Remove event",
+      title: t("confirm.remove_event_title"),
+      message: t("confirm.remove_event_message"),
+      confirmLabel: t("confirm.remove_event_cta"),
       danger: true,
     });
     if (!confirmed) return;
     try {
       const result = await api(`/breadcrumbs/${state.editing.id}/`, { method: "DELETE" });
       closeModal("record-modal");
-      await refreshCurrent(result.change ? result.change.message : "Event removed.");
+      await refreshCurrent(result.change ? result.change.message : t("toast.event_removed"));
     } catch (error) { toast(error.message); }
   }
 
   async function showHelp() {
     openModal("help-modal");
-    $("help-context").textContent = state.current.title + " • Your current recorded state";
-    $("help-summary").innerHTML = '<div class="help-block"><p>Loading your saved context…</p></div>';
+    $("help-context").textContent = t("modal.help.context", { title: state.current.title });
+    $("help-summary").innerHTML = `<div class="help-block"><p>${escapeHTML(t("modal.help.loading"))}</p></div>`;
     try {
       const body = await api(`/journeys/${state.current.id}/stuck/?polish=false`);
       const org = body.responsible_organization;
       $("help-summary").innerHTML = `
-        <div class="help-block"><span>Where you left off</span><p>${escapeHTML(body.summary || state.current.state.current_state)}</p></div>
-        <div class="help-block"><span>Still unresolved</span><p>${escapeHTML(body.unresolved_issue || "No unresolved issue is recorded.")}</p></div>
-        <div class="help-block"><span>Last recorded instruction</span><p>${escapeHTML(body.latest_instruction || "No instruction has been recorded.")}</p></div>
-        <div class="help-block"><span>Responsible organization</span><p>${escapeHTML(org ? (org.short_name || org.name) : "Not enough verified information yet")}</p></div>`;
+        <div class="help-block"><span>${escapeHTML(t("modal.help.section_left_off"))}</span><p>${escapeHTML(body.summary || state.current.state.current_state)}</p></div>
+        <div class="help-block"><span>${escapeHTML(t("modal.help.section_unresolved"))}</span><p>${escapeHTML(body.unresolved_issue || t("modal.help.no_unresolved"))}</p></div>
+        <div class="help-block"><span>${escapeHTML(t("modal.help.section_instruction"))}</span><p>${escapeHTML(body.latest_instruction || t("modal.help.no_instruction"))}</p></div>
+        <div class="help-block"><span>${escapeHTML(t("modal.help.section_org"))}</span><p>${escapeHTML(org ? (org.short_name || org.name) : t("modal.help.org_unknown"))}</p></div>`;
     } catch (error) { $("help-summary").innerHTML = `<div class="notice">${escapeHTML(error.message)}</div>`; }
   }
 
@@ -596,36 +690,44 @@
   }
 
   async function showOrganization() {
-    showInfo("Finding the responsible organization…", "Verified directory", "<p>Loading…</p>");
+    showInfo(t("modal.org.loading_title"), t("modal.org.loading_eyebrow"), `<p>${escapeHTML(t("common.loading"))}</p>`);
     try {
       const body = await api(`/journeys/${state.current.id}/responsible-organization/`);
-      if (!body.responsible_organization) { showInfo("We don’t have enough verified information", "Who handles this?", `<p>${escapeHTML(body.message)}</p>`); return; }
+      if (!body.responsible_organization) { showInfo(t("modal.org.unknown_title"), t("journey.org_button"), `<p>${escapeHTML(body.message)}</p>`); return; }
       const org = body.responsible_organization;
       const sources = (body.official_sources || []).map((source) => `<li><a href="${escapeHTML(source.url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(source.title)}</a></li>`).join("");
-      showInfo(org.short_name || org.name, "Responsible organization", `<p>${escapeHTML(body.message || body.basis || "Matched from the curated directory.")}</p><p><a href="${escapeHTML(org.official_url)}" target="_blank" rel="noopener noreferrer">Open official website ↗</a></p>${sources ? `<h3>Official sources</h3><ul class="source-list">${sources}</ul>` : ""}`);
-    } catch (error) { showInfo("Could not load the directory", "Who handles this?", `<p>${escapeHTML(error.message)}</p>`); }
+      showInfo(
+        org.short_name || org.name,
+        t("modal.help.section_org"),
+        `<p>${escapeHTML(body.message || body.basis || t("modal.org.matched_basis"))}</p><p><a href="${escapeHTML(org.official_url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(t("modal.org.open_site"))}</a></p>${sources ? `<h3>${escapeHTML(t("modal.org.sources_heading"))}</h3><ul class="source-list">${sources}</ul>` : ""}`
+      );
+    } catch (error) { showInfo(t("modal.org.error_title"), t("journey.org_button"), `<p>${escapeHTML(error.message)}</p>`); }
   }
 
   async function showHandoff() {
-    showInfo("Preparing your handoff…", "Case summary", "<p>Building a summary from confirmed records only…</p>");
+    showInfo(t("modal.handoff.loading_title"), t("modal.handoff.eyebrow"), `<p>${escapeHTML(t("modal.handoff.loading_body"))}</p>`);
     try {
       const body = await api(`/journeys/${state.current.id}/handoff/`, { method: "POST", body: JSON.stringify({ polish: false }) });
-      showInfo("Hand this to the next person", "Case summary", `<pre class="summary-text" id="handoff-summary">${escapeHTML(body.summary)}</pre><p><button class="button primary" id="copy-handoff">Copy summary</button></p>`);
-      $("copy-handoff").addEventListener("click", async () => { await navigator.clipboard.writeText(body.summary); toast("Handoff copied."); });
-    } catch (error) { showInfo("Could not prepare the handoff", "Case summary", `<p>${escapeHTML(error.message)}</p>`); }
+      showInfo(
+        t("modal.handoff.result_title"),
+        t("modal.handoff.eyebrow"),
+        `<pre class="summary-text" id="handoff-summary">${escapeHTML(body.summary)}</pre><p><button class="button primary" id="copy-handoff">${escapeHTML(t("modal.handoff.copy_button"))}</button></p>`
+      );
+      $("copy-handoff").addEventListener("click", async () => { await navigator.clipboard.writeText(body.summary); toast(t("toast.handoff_copied")); });
+    } catch (error) { showInfo(t("modal.handoff.error_title"), t("modal.handoff.eyebrow"), `<p>${escapeHTML(error.message)}</p>`); }
   }
 
   async function markComplete() {
     const confirmed = await confirmModal({
-      title: "Mark this Journey complete?",
-      message: "This updates your personal record only — it does not claim that a government application was approved.",
-      confirmLabel: "Mark complete",
+      title: t("confirm.complete_title"),
+      message: t("confirm.complete_message"),
+      confirmLabel: t("confirm.complete_cta"),
     });
     if (!confirmed) return;
     try {
       const payload = {
-        kind: "STATUS_UPDATE", channel: "OTHER", title: "Journey marked complete",
-        raw_text: "I completed this journey.", reported_status: "RESOLVED",
+        kind: "STATUS_UPDATE", channel: "OTHER", title: t("journey.marked_complete_title"),
+        raw_text: t("journey.marked_complete_raw"), reported_status: "RESOLVED",
         suggested_next_action: "NONE", occurred_on: today(),
         request_id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
       };
@@ -642,19 +744,19 @@
     try {
       await api(`/guide-steps/${step.id}/complete/`, { method: "POST", body: "{}" });
       closeModal("guide-step-modal");
-      await refreshCurrent(`Step ${step.position} was marked complete and added to your record.`);
+      await refreshCurrent(t("toast.step_completed", { n: step.position }));
     } catch (error) { toast(error.message); }
     finally { button.disabled = false; }
   }
 
   async function editJourney() {
-    const title = prompt("Journey title", state.current.title);
+    const title = prompt(t("prompt.journey_title"), state.current.title);
     if (title === null) return;
-    const goal = prompt("What are you trying to accomplish?", state.current.goal);
+    const goal = prompt(t("prompt.journey_goal"), state.current.goal);
     if (goal === null) return;
     try {
       await api(`/journeys/${state.current.id}/`, { method: "PATCH", body: JSON.stringify({ title, goal }) });
-      await refreshCurrent("Your goal was updated.");
+      await refreshCurrent(t("toast.goal_updated"));
     } catch (error) { toast(error.message); }
   }
 
@@ -664,7 +766,7 @@
     try {
       const title = $("goal-input").value.trim();
       const situation = $("situation-input").value.trim();
-      const description = `Goal: ${title}\nSituation: ${situation || "No additional details provided."}`;
+      const description = t("create.ai_context", { title, situation: situation || t("create.no_situation_details") });
       const goal = situation ? `${title}. ${situation}` : title;
       const body = await api("/journeys/", { method: "POST", body: JSON.stringify({ goal, description }) });
       if (body.type === "OUT_OF_SCOPE") {
@@ -676,22 +778,22 @@
       closeModal("goal-confirm-modal");
       await loadJourneys();
       await selectJourney(body.id, true);
-      if (state.authMode === "guest") toast("Sign in with Google from the profile button to save your Journey.");
+      if (state.authMode === "guest") toast(t("toast.guest_reminder"));
     } catch (error) { toast(error.message); }
     finally { button.disabled = false; }
   }
 
   function populateOrganizationSelect() {
-    $("detail-org").innerHTML = '<option value="">Not specified</option>' + state.organizations.map((org) => `<option value="${escapeHTML(org.name)}">${escapeHTML(org.short_name || org.name)}</option>`).join("");
+    $("detail-org").innerHTML = `<option value="">${escapeHTML(t("modal.record.field_org_unspecified"))}</option>` + state.organizations.map((org) => `<option value="${escapeHTML(org.name)}">${escapeHTML(org.short_name || org.name)}</option>`).join("");
   }
 
   async function showAccount() {
     if (state.authMode === "account") {
       showInfo(
-        "Your Journey is saved",
-        "Signed in",
-        `<p>You are signed in through Auth0. Django continues to control Journey ownership and access.</p>
-         <p><button class="button secondary" id="sign-out-button">Sign out</button></p>`
+        t("modal.account.signed_in_title"),
+        t("modal.account.signed_in_eyebrow"),
+        `<p>${escapeHTML(t("modal.account.signed_in_body"))}</p>
+         <p><button class="button secondary" id="sign-out-button">${escapeHTML(t("modal.account.sign_out"))}</button></p>`
       );
       const signOutButton = $("sign-out-button");
       if (signOutButton) signOutButton.addEventListener("click", signOut);
@@ -699,7 +801,7 @@
     }
     openModal("account-modal");
     $("auth-login").disabled = !state.auth0;
-    if (!state.auth0) $("auth-login").textContent = "Configure Auth0 to enable sign-in";
+    if (!state.auth0) $("auth-login").textContent = t("modal.account.disabled_cta");
   }
 
   async function signOut() {
@@ -719,6 +821,7 @@
     $("landing-nav-start").addEventListener("click", startNewGoal);
     $("landing-nav-signin").addEventListener("click", showAccount);
     $("landing-closing-cta").addEventListener("click", startNewGoal);
+    $("lang-toggle").addEventListener("click", () => setLocale(currentLocale === "en" ? "fr" : "en"));
     $("crumb-home").addEventListener("click", openSidebar);
     $("sidebar-new").addEventListener("click", startNewGoal);
     $("completion-new").addEventListener("click", startNewGoal);
@@ -729,7 +832,7 @@
       const goal = $("goal-input").value.trim();
       if (!goal) return;
       $("confirm-goal-text").textContent = goal;
-      $("confirm-situation-text").textContent = $("situation-input").value.trim() || "No additional situation details yet.";
+      $("confirm-situation-text").textContent = $("situation-input").value.trim() || t("modal.confirm_goal.no_situation");
       openModal("goal-confirm-modal");
     });
     $("confirm-create").addEventListener("click", createJourney);
@@ -764,17 +867,24 @@
   }
 
   async function start() {
+    document.documentElement.lang = currentLocale;
+    applyI18nToDOM();
+    updateLangToggle();
     bindEvents();
     try {
+      const csrfResponse = await fetch(API + "/auth/csrf/", { credentials: "include" });
+      state.csrfToken = (await csrfResponse.json()).csrf_token || "";
+      await syncLocaleWithBackend();
       await setupAuth();
       const orgBody = await api("/organizations/");
       state.organizations = orgBody.results || [];
+      populateEnumSelects();
       populateOrganizationSelect();
       const journeys = await loadJourneys();
       if (journeys.length) await selectJourney(journeys[0].id);
       else showLanding();
     } catch (error) {
-      toast(error.message || "The app could not load. Is the server running?");
+      toast(error.message || t("error.app_load_failed"));
       showLanding();
     }
   }

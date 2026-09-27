@@ -14,14 +14,19 @@ weaker tools get wrong:
   manufactures a human to contact when the correct answer is to wait sends
   people into phone queues for nothing.
 """
+from django.utils.translation import gettext_lazy as _
+
 from .models import Organization
 
-NO_MATCH_MESSAGE = (
+#: Module-level constants: must be lazy, or they would be translated once at
+#: import time and never re-evaluate per request (see apps/journeys/state.py
+#: for the same pattern and reasoning).
+NO_MATCH_MESSAGE = _(
     "We do not have enough verified information to identify the responsible "
     "organization."
 )
 
-WAIT_MESSAGE = (
+WAIT_MESSAGE = _(
     "No organization needs to hear from you right now. Your last recorded "
     "update said to wait."
 )

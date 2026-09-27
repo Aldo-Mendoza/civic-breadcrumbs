@@ -18,8 +18,8 @@ class OrganizationListView(APIView):
                         "name": org.name,
                         "short_name": org.short_name,
                         "jurisdiction": org.jurisdiction,
-                        "description": org.description,
-                        "official_url": org.official_url,
+                        "description": org.localized_description,
+                        "official_url": org.localized_official_url,
                         "source_count": org.official_sources.count(),
                     }
                     for org in organizations

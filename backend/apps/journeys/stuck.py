@@ -11,6 +11,8 @@ may be asked afterwards to make the wording clearer, and that is the only thing 
 is allowed to touch -- it cannot change a date, an organization, a status or an
 instruction, because those are already fixed before it is called.
 """
+from django.utils.translation import gettext as _
+
 from common.utils import format_day
 
 from . import enums
@@ -21,7 +23,7 @@ def _summarize_history(journey, breadcrumbs, state):
     """Two or three sentences describing the journey so far, in recorded tense."""
     evidence = [b for b in breadcrumbs if b.counts_as_evidence]
     if not evidence:
-        return (
+        return _(
             "You have not recorded anything for this journey yet, so there is "
             "nothing to summarise."
         )
@@ -31,7 +33,7 @@ def _summarize_history(journey, breadcrumbs, state):
     last = ordered[-1]
 
     parts = [
-        "You are working on: {goal}".format(
+        _("You are working on: {goal}").format(
             goal=(journey.goal or journey.title).rstrip(".") + "."
         )
     ]
@@ -40,8 +42,10 @@ def _summarize_history(journey, breadcrumbs, state):
         parts.append(_describe_event(first))
     else:
         parts.append(
-            "You started recording this on {start} and your most recent entry "
-            "was on {end}, {count} events in total.".format(
+            _(
+                "You started recording this on {start} and your most recent "
+                "entry was on {end}, {count} events in total."
+            ).format(
                 start=format_day(first.occurred_at),
                 end=format_day(last.occurred_at),
                 count=len(ordered),
@@ -51,7 +55,7 @@ def _summarize_history(journey, breadcrumbs, state):
 
     if state.latest_instruction:
         parts.append(
-            "The last instruction you recorded was: {instruction}".format(
+            _("The last instruction you recorded was: {instruction}").format(
                 instruction=state.latest_instruction.rstrip(".") + "."
             )
         )
@@ -94,7 +98,7 @@ def build_stuck_summary(journey, breadcrumbs, state, organization_result, source
 
     unresolved = state.unresolved_issue
     if not unresolved and state.status == enums.JourneyStatus.COMPLETED:
-        unresolved = "Nothing appears unresolved based on what you have recorded."
+        unresolved = _("Nothing appears unresolved based on what you have recorded.")
 
     return {
         "summary": summary,
@@ -109,7 +113,7 @@ def build_stuck_summary(journey, breadcrumbs, state, organization_result, source
                 "name": organization.name,
                 "short_name": organization.short_name,
                 "jurisdiction": organization.jurisdiction,
-                "official_url": organization.official_url,
+                "official_url": organization.localized_official_url,
                 "source": "CURATED_DIRECTORY",
                 "basis": organization_result.get("basis"),
             }
@@ -120,9 +124,9 @@ def build_stuck_summary(journey, breadcrumbs, state, organization_result, source
         "official_sources": [
             {
                 "id": str(source.id),
-                "title": source.title,
-                "url": source.url,
-                "description": source.description,
+                "title": source.localized_title,
+                "url": source.localized_url,
+                "description": source.localized_description,
                 "organization": source.organization.short_name
                 or source.organization.name,
                 "verified_at": source.verified_at,

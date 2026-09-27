@@ -9,7 +9,7 @@ from datetime import datetime, time, timedelta
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
-from django.utils import timezone
+from django.utils import timezone, translation
 
 from apps.directory.models import Organization
 from apps.directory.seed import seed_directory
@@ -516,3 +516,64 @@ class StalenessTests(StateTestCase):
             enums.JourneyStatus.ACTION_REQUIRED, [old, recent_ai], now=now
         )
         self.assertTrue(result.is_stale)
+
+
+class FrenchStateDerivationTests(StateTestCase):
+    """
+    French localization, Phase C: state derivation must read as genuine
+    French, not English with translated labels bolted on, when the citizen's
+    chosen language is French (django.utils.translation active locale).
+    """
+
+    def test_empty_state_is_french(self):
+        with translation.override("fr"):
+            state = self.derive()
+        self.assertIn("Rien n'a encore été enregistré", state.current_state)
+        self.assertIn("Enregistrez ce qui s'est passé", state.next_action)
+
+    def test_waiting_state_is_french_including_the_organization_clause(self):
+        self.add(structured_data={"reported_status": enums.ReportedStatus.PROCESSING})
+        with translation.override("fr"):
+            state = self.derive()
+        self.assertEqual(state.status, enums.JourneyStatus.WAITING)
+        self.assertIn("Votre dernière interaction enregistrée avec", state.current_state)
+        self.assertIn("toujours en traitement", state.current_state)
+        self.assertIn("Attendez une mise à jour", state.next_action)
+
+    def test_completed_state_is_french(self):
+        self.add(structured_data={"reported_status": enums.ReportedStatus.APPROVED})
+        with translation.override("fr"):
+            state = self.derive()
+        self.assertEqual(state.status, enums.JourneyStatus.COMPLETED)
+        self.assertIn("a rapporté le résultat comme étant", state.current_state)
+        self.assertIn("approuvé", state.current_state)
+
+    def test_explicit_instruction_is_prefixed_in_french(self):
+        self.add(
+            structured_data={
+                "suggested_next_action": enums.NextActionCode.UPLOAD,
+                "instruction": "Envoyez une copie de votre passeport",
+            }
+        )
+        with translation.override("fr"):
+            state = self.derive()
+        self.assertEqual(state.status, enums.JourneyStatus.ACTION_REQUIRED)
+        self.assertTrue(state.next_action.startswith("Fournissez ce qui a été demandé : "))
+
+    def test_default_locale_is_unaffected(self):
+        """English behaviour must be untouched by the French catalog existing."""
+        state = self.derive()
+        self.assertIn("Nothing has been recorded", state.current_state)
+
+
+class FrenchStalenessTests(StateTestCase):
+    def test_staleness_message_is_french(self):
+        breadcrumb = self.add()
+        now = timezone.now()
+        breadcrumb.created_at = now - timedelta(days=30)
+        breadcrumb.save(update_fields=["created_at"])
+        with translation.override("fr"):
+            result = compute_staleness(
+                enums.JourneyStatus.ACTION_REQUIRED, [breadcrumb], now=now
+            )
+        self.assertIn("Vous n'avez rien enregistré de nouveau depuis", result.message)

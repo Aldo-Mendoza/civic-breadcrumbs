@@ -16,22 +16,44 @@ from apps.journeys.models import Breadcrumb, Guide, GuideStep, Journey
 
 
 class OrganizationSummarySerializer(serializers.Serializer):
+    """
+    official_url is a SerializerMethodField (not a plain URLField) so it
+    returns the French link when the citizen's chosen language is French and
+    a verified one exists (Organization.localized_official_url) -- see
+    apps/directory/models.py for the fallback rule.
+    """
+
     id = serializers.UUIDField(read_only=True)
     name = serializers.CharField(read_only=True)
     short_name = serializers.CharField(read_only=True)
     jurisdiction = serializers.CharField(read_only=True)
-    official_url = serializers.URLField(read_only=True)
+    official_url = serializers.SerializerMethodField()
+
+    def get_official_url(self, obj):
+        return obj.localized_official_url
 
 
 class GuideOfficialSourceSerializer(serializers.Serializer):
+    """title/url/description are SerializerMethodFields for the same reason
+    as OrganizationSummarySerializer.official_url above."""
+
     id = serializers.UUIDField(read_only=True)
-    title = serializers.CharField(read_only=True)
-    url = serializers.URLField(read_only=True)
-    description = serializers.CharField(read_only=True)
+    title = serializers.SerializerMethodField()
+    url = serializers.SerializerMethodField()
+    description = serializers.SerializerMethodField()
     verified_at = serializers.DateTimeField(read_only=True)
     source_verified_at = serializers.DateTimeField(read_only=True)
     section_heading = serializers.CharField(read_only=True)
     current_status = serializers.CharField(read_only=True)
+
+    def get_title(self, obj):
+        return obj.localized_title
+
+    def get_url(self, obj):
+        return obj.localized_url
+
+    def get_description(self, obj):
+        return obj.localized_description
 
 
 class GuideStepSerializer(serializers.ModelSerializer):
