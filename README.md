@@ -1,59 +1,195 @@
-# Civic Breadcrumbs
+# Breadcrumbs
 
-> **Government shouldn't make you start over.**
+**One person. One journey. Many services.**
+**Pick up where you left off.**
 
-Every institution remembers its own interaction. The citizen has to remember all
-of them. Civic Breadcrumbs is a citizen-owned memory layer across fragmented
-public services: you record what happened, and it tells you where you left off,
-who is responsible, and hands the next person your whole story so you don't have
-to explain it again.
+### 🔗 [Live demo — breadcrumbs.select](https://breadcrumbs.select/)
+
+Breadcrumbs is a citizen-first continuity tool for navigating public services. A single goal — extending a permit, getting a health card, settling into a new city — can involve a website, a form, an email, a phone call, a service counter, and more than one level of government. Breadcrumbs helps a person keep track of what happened, what they were told, where they currently stand, and what's known about the next step — and it can turn that into a short handoff so the next person helping them starts with context instead of a blank page.
 
 Built for **Hack the Hill III**, Civic Technology track.
 
 ---
 
-## What this is, in the challenge's own terms
+## The problem
 
-| The challenge asks | Our answer |
+Getting something done through public services rarely happens in one interaction. A person might apply online, then call to follow up, then get a letter, then visit an office — each step held by a different system, remembered by a different person. The person going through it is usually the only one who remembers the whole story, and if they're unfamiliar with the process, that's genuinely hard to hold onto.
+
+This became visible to us first through international students and newcomers navigating Canadian immigration and settlement processes for the first time — but the underlying need isn't specific to that group. Anyone juggling a multi-step process across institutions, or helping a family member do the same, runs into the same problem: **continuity is the hard part, not any single step.**
+
+## Our solution
+
+Breadcrumbs organizes a person's process around a few simple ideas:
+
+| Concept | What it means |
 |---|---|
-| **Who is being served** | International students and newcomers in Ottawa, who routinely cross federal, provincial, municipal and university boundaries for a single goal. Secondarily, older adults and the family members who help them — a phone call, a letter or a counter visit is first-class evidence here, not a second-class input |
-| **Which institution / civic process** | A study permit extension with IRCC, touching Service Canada, the Government of Ontario, the City of Ottawa and a university international office |
-| **Which interaction we improve** | Continuity. The citizen stops re-assembling their own case history from memory every time they reach a new desk, and the person they reach gets a structured, accurate summary instead of a confused retelling |
+| **Journey** | The overall goal (e.g. "Extend my work permit") and everything recorded toward it |
+| **Breadcrumbs** | Individual recorded events — a call, an email, a letter, a form submitted, an instruction received |
+| **You left off here** | A plain-language summary of the current state, derived from what's actually been recorded |
+| **Next known step** | What's known to still need doing, based on confirmed evidence, not a guess |
+| **I'm stuck** | An on-demand, bounded summary: what happened, what's unresolved, the last instruction, and who's responsible |
+| **Responsible organization & official sources** | Where the directory can identify one, a link to a verified official page — with an excerpt and the date it was last checked |
+| **Handoff** | A copyable summary generated from confirmed records, ready to give to someone else helping with the case |
 
-The direction runs both ways: the citizen keeps their context, and the next
-official receives a better-organized account of it than they would otherwise get.
+## How it works
 
-### Why this isn't a chatbot
+```mermaid
+flowchart LR
+    A[Describe your goal] --> B[Journey created<br/>+ suggested guide]
+    B --> C[Add a breadcrumb<br/>in your own words]
+    C --> D[Review & confirm<br/>what was understood]
+    D --> E[Current state updates]
+    E --> F[You left off here]
+    F --> G[I'm stuck / next step]
+    G --> H[Hand off to someone else]
+```
 
-The core object is a **Journey** with structured, timestamped evidence — not a
-conversation. Ask ChatGPT what "still processing" means and it will tell you.
-It cannot tell you that *you* submitted on September 18, that IRCC told you on
-September 24 not to reapply, and that nothing has changed since. That gap is the
-product.
+A person describes their situation in plain language once, in either English or French. Breadcrumbs turns that into a small guide and a running record. Every later event goes through the same "record → review → confirm" loop — nothing becomes part of the record until the person confirms it's accurate.
 
-**Most of the app never calls a model at all.** The timeline, the current state,
-"you left off here", the responsible organization and the handoff summary are all
-derived deterministically from what you recorded. An AI helps read your sentence
-into structure; it never becomes the record.
+## Example scenarios
 
-### Guidance and evidence are deliberately separate
+**Starting a work-permit extension, nothing done yet**
+> *"I want to extend my work permit. I haven't started anything yet and I'm not sure where to begin."*
+Breadcrumbs proposes a guide that starts from square one: understand the process, gather what's needed, submit, confirm.
 
-Creating a Journey now produces a small ordered guide (three to six suggested
-steps) before the citizen starts recording events. The guide is organizational
-help, not evidence and not a claim about current official requirements. When a
-jurisdiction or another load-bearing detail is missing, the guide asks one
-focused clarification and stays generic rather than inventing a form, deadline,
-fee or department.
+**Same goal, application already submitted**
+> *"I already submitted my application three weeks ago and received confirmation. I haven't heard anything since."*
+The same goal produces a *different* guide — one that starts from "wait for a response" and "record any update," not from "begin your application." **Two people can share a goal and still be at different stages, so their next step shouldn't look the same.**
 
-A guide step becomes **in progress** only when the citizen records something
-against it. It becomes **complete** only after an explicit confirmation, which
-creates one idempotent user-reported Breadcrumb. The timeline therefore remains
-an auditable record of what the citizen actually did, while reopening the guide,
-viewing progress, editing, or deleting records uses zero Gemini calls.
+**Describing a situation in French**
+> *"Je souhaite prolonger mon permis de travail. Je n'ai encore entrepris aucune démarche."*
+Breadcrumbs interprets French input, resolves the correct responsible organization, and returns a guide and official-source links in French — the same functionality as the English path, not a reduced version of it.
 
----
+**Helping a family member**
+A phone call, a letter, or an in-person appointment on someone else's behalf is recorded the same way a self-service action would be — so a caregiver or family member can maintain continuity for someone who isn't managing the process themselves online.
 
-## Run it
+## What Breadcrumbs can and can't do
+
+**Can**
+- Organize a citizen-owned Journey and timeline of events
+- Record and structure interactions described in plain language (English or French)
+- Preserve the person's original wording alongside the structured interpretation
+- Show current known state and progress against a suggested guide
+- Identify a responsible organization from a curated directory, where one is known
+- Link to verified official pages, with an excerpt and a last-checked date
+- Produce a handoff summary from confirmed records
+
+**Can't**
+- Make a government decision or determine legal/immigration status
+- Give legal advice
+- Submit an application on someone's behalf
+- Invent a department, deadline, fee, or contact that isn't verified
+- Access a private government case file
+- Claim a live official case status it has no authoritative source for
+- Act as an open-ended general-purpose chatbot
+
+## Responsible AI
+
+This is a deliberate design position, not an afterthought:
+
+- **AI helps interpret; it isn't the source of truth.** The person's original words are always kept alongside whatever the model extracted from them.
+- **Nothing becomes evidence without confirmation.** A model's reading of a sentence is a draft the person reviews and accepts (or corrects) before it's saved — generated text is never silently written into the record.
+- **Generated output never feeds back into another model call.** One user action produces at most one AI call; a summary is never re-summarized.
+- **Every record carries a provenance label** — Official, User-reported, Community, or AI-interpretation — so it's always clear where a piece of information came from.
+- **Uncertainty is stated, not hidden.** If a detail is missing, Breadcrumbs asks one focused clarifying question rather than guessing; if no organization can be confidently identified, it says so instead of naming one.
+- **Conversation is bounded on purpose.** An unrelated request (or an attempt to redefine the assistant's role) gets a deterministic response pointing back at what the tool actually does — not an open-ended reply.
+
+## How Gemini is used
+
+Gemini is used for a small number of specific, bounded tasks:
+- Turning a plain-language goal description into a structured Journey and a suggested guide
+- Extracting structured details (who, what, channel, status, instruction) from a described event
+- Picking, at most, one verified excerpt to support a specific guide step's claim — never inventing a source
+- Optional, on-request rewording of an already-assembled summary ("I'm stuck" / handoff), which can add no new facts
+
+**Most of the product needs zero AI calls.** Viewing a timeline, loading a Journey, checking current state, editing or deleting a confirmed record, and looking up an official source are all plain reads or writes against the database — this was a deliberate choice for reliability, cost control, and to avoid a model's output ever feeding back into itself. A deterministic, rule-based fallback (keyword/date/organization matching) covers Journey and breadcrumb creation whenever Gemini is disabled, rate-limited, or unavailable, so the app keeps working end-to-end without it.
+
+## Guest access & sign-in
+
+Anyone can try Breadcrumbs immediately as a guest — no account needed. A guest gets a private, cookie-backed session (expiring after 7 days) with a small usage allowance, so they can experience the product before deciding to create an account.
+
+Signing in uses **Auth0**, with Google as a social sign-in option through Auth0's Universal Login. Signing in migrates a guest's existing Journey onto the account (a one-time, idempotent operation) and lifts the guest-level usage limits. Usage limits on both guest and signed-in tiers exist to keep a shared Gemini quota available to everyone trying the demo.
+
+## Technology stack
+
+- **Backend:** Django, Django REST Framework, PostgreSQL (SQLite for local development)
+- **Frontend:** server-rendered templates with vanilla JavaScript and CSS — no build step, framework, or transpiler
+- **AI:** Google Gemini API, with a deterministic rule-based fallback service implementing the same contract
+- **Auth:** Auth0 (Universal Login, Google social connection), validated server-side via RS256 JWT
+- **Localization:** Django `gettext` for backend text, a small client-side dictionary for the frontend — English and French
+- **Deployment:** Render (Blueprint-defined web service + managed PostgreSQL), custom domain `breadcrumbs.select` via GoDaddy
+- **API docs:** OpenAPI schema via drf-spectacular
+
+## Architecture
+
+```mermaid
+flowchart TD
+    U[Person, in a browser] --> F[Server-rendered UI<br/>HTML / vanilla JS]
+    F --> AU[Auth0<br/>Universal Login]
+    F --> D[Django REST API]
+    D --> P[(PostgreSQL)]
+    D --> G[Gemini API]
+    D --> S[Curated, verified<br/>official sources]
+```
+
+A **modular monolith**: one Django project, two focused apps (`journeys` and `directory`), and a single `services/ai` layer providing one interface with two implementations (Gemini-backed and rule-based). This was the right tradeoff for a hackathon timeline — simpler to build, test, and deploy than a services split — while still keeping AI, domain logic, authentication, and persistence in clearly separated modules rather than tangled together.
+
+```
+backend/
+├── apps/journeys/     Journey + Breadcrumb, state derivation, "I'm stuck", handoff
+├── apps/directory/    Curated organizations, official sources, and source verification
+├── services/ai/       One AI interface, two implementations, the scope/injection gate, prompts
+├── common/            Error handling, guest/Auth0 authentication, rate limiting
+└── demo/              The actual frontend: templates, JS, CSS, i18n dictionaries
+```
+
+## Why we made these decisions
+
+**Why not just a chatbot?** The valuable thing is a persistent, structured Journey — not a conversation transcript. A chat log can't reliably answer "what did I actually submit, and when."
+
+**Why citizen-first?** It creates continuity without needing any public institution to adopt or integrate anything. The tool is useful on day one, independent of legacy systems.
+
+**Why start with newcomer scenarios?** They make the need for guidance through an unfamiliar process especially visible — but the product itself works for anyone managing a multi-step process, not just newcomers.
+
+**Why limit AI so deliberately?** Structured application logic is predictable, fast, and auditable in a way a model call isn't. AI earns its place only where natural-language understanding adds real value — reading a sentence — not for storage, retrieval, or navigation.
+
+**Why guest mode?** A civic tool should let someone see its value before asking them to create an account.
+
+**Why Auth0?** Secure sign-in and Google social login without building and maintaining identity infrastructure ourselves.
+
+**Why Render and a custom domain?** A simple, public, one-click deployment story and a memorable URL for a hackathon demo.
+
+## Challenges and what we learned
+
+- **Live Gemini calls in an automated test suite is a quota trap.** An early version of the test suite could reach the real API; a single retry-on-any-error bug burned a day's free-tier quota in minutes. We restructured so `manage.py test` always runs against a mocked/rule-based path, and live-model verification lives in separate, explicitly opt-in commands (`verify_gemini`, `eval_gemini`) that never run automatically.
+- **A live evaluation caught what mocked tests couldn't.** Running real, varied prompts through Gemini surfaced inconsistent judgment about when a detail needs clarifying — something no hand-written mock would expose. We turned that into invariants enforced on the data contract itself, so they hold regardless of which engine produced a draft.
+- **The same goal doesn't mean the same next step.** Making the guide reflect a person's actual stage — not just their goal — took explicit design and testing (see the two work-permit scenarios above) rather than falling out of a single generic prompt.
+- **Two features can target the same weak spot from different angles.** Reliable official-source linking was improved from two directions in parallel — better organization matching (including full French-language support) and a citation-grounding system that verifies and re-checks source pages over time. Bringing both together took deliberately reconciling how they share the same underlying organization-resolution step, rather than picking one and discarding the other.
+- **Bilingual support isn't a translation pass.** Word order, gendered articles, and pluralization meant the deterministic fallback needed real French logic, not templated string substitution — closer to a second small effort than a find-and-replace.
+
+## Judge FAQ
+
+**Why isn't this just ChatGPT?** ChatGPT has no memory of what you actually did, on what date, or what you were told. Breadcrumbs' value is the structured, persistent record — the model is one small step in filling it in, not the product.
+
+**Why isn't this just a notes app?** A notes app doesn't derive your current state, suggest a next step, identify a responsible organization, or generate a handoff from what you wrote — Breadcrumbs treats your notes as structured evidence, not free text.
+
+**Does Breadcrumbs give immigration or legal advice?** No. It never asserts a legal status, eligibility outcome, or official decision — see "What Breadcrumbs can't do" above.
+
+**What happens if Gemini gets something wrong?** Nothing is saved until the person reviews and confirms it. A wrong draft is corrected or discarded before it ever becomes part of the record.
+
+**How do you prevent hallucination?** Structured output is schema-validated, organizations are matched only against a curated directory (never invented), and any factual claim in a guide step must be backed by a specific, verified source excerpt or it's left out.
+
+**How do you prevent people from abusing the AI?** Rate limits and daily quotas apply per guest session and per account, and most of the product's functionality doesn't touch the model at all, so there's little incentive or ability to spam it.
+
+**Does this need a government API integration?** No. Breadcrumbs works entirely from what the citizen records and a small, human-curated directory of public official sources — no institutional cooperation required to be useful.
+
+**How does this bring people and institutions closer together?** By giving the person a clear, accurate account of their own situation, the next official they reach — a call centre agent, a caseworker, a family member helping out — gets a better starting point than a confused retelling.
+
+**Why is the newcomer scenario in the demo if the tool is for everyone?** It's the scenario that makes an unfamiliar, multi-step process especially visible and easy to demonstrate — not a restriction on who it's for.
+
+**What happens if Gemini is unavailable?** A deterministic, rule-based engine covers the same actions — Journey creation, event interpretation — so the app keeps working end-to-end, just without model-assisted phrasing.
+
+## Running locally
 
 ```bash
 cd backend
@@ -68,345 +204,39 @@ python -m venv .venv
 
 Then open **http://127.0.0.1:8000/demo/**. API docs are at `/api/docs/`.
 
-No API key, no database server and no network are required to run the whole
-thing. SQLite is the default; point `DATABASE_URL` at PostgreSQL when you want
-it:
+No API key, external database, or network access is required to run the whole thing — SQLite is the default, and the deterministic fallback covers every AI-backed action. Copy `backend/.env.example` to `backend/.env` to configure anything (Gemini key, Auth0 tenant, PostgreSQL URL); every value has a working default, and no real secrets belong in the repository.
 
-```bash
-DATABASE_URL=postgres://civic:civic@127.0.0.1:5432/civic_breadcrumbs
-```
+To enable Gemini locally, set `GEMINI_API_KEY` and `AI_ENABLED=true` in `.env`. To enable sign-in, set `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, and `AUTH0_AUDIENCE`; guest mode works without them.
 
-Copy `.env.example` to `.env` to configure anything. Every value has a working
-default.
-
-### Deploying on Render
-
-The repository includes a root-level `render.yaml` Blueprint. It provisions a
-Python web service and a PostgreSQL database, collects static files, applies
-migrations, starts Gunicorn, and checks `/health/` before routing traffic.
-
-1. Commit and push the repository to GitHub.
-2. In Render, select **New → Blueprint** and connect this repository.
-3. Keep the detected `render.yaml` path and apply the Blueprint.
-4. Wait for both `civic-breadcrumbs-db` and `civic-breadcrumbs` to become live.
-5. Open the service URL and verify `/health/` returns `{"status": "ok"}`.
-
-The first deployment deliberately uses the deterministic guide engine with
-`AI_ENABLED=false`. To enable Gemini later, add `GEMINI_API_KEY` as a secret in
-the Render service environment, set `AI_ENABLED=true`, and redeploy. Auth0 can
-likewise be enabled later with `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, and
-`AUTH0_AUDIENCE`; guest mode does not require them.
-
-For a custom or separate frontend domain, add its exact HTTPS origin to both
-`CORS_ALLOWED_ORIGINS` and `CSRF_TRUSTED_ORIGINS`, and add the hostname (without
-the scheme) to `ALLOWED_HOSTS`. Keep comma-separated values with no wildcard.
-
-### Guest access and Auth0 Google sign-in
-
-Guest mode is the default. Django issues an HttpOnly opaque session cookie and
-owns the temporary identity, Journey ownership, quotas, and authorization. Guest
-data expires after seven days by default; expired guest users and their Journeys
-are removed by bounded cleanup during guest traffic.
-
-To enable sign-in, create an Auth0 **Single Page Application** and API, enable
-Google in Auth0's Social Connections, and attach that connection to the
-application. Configure the allowed callback/logout/web origins for the frontend,
-then set `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, and `AUTH0_AUDIENCE` from
-`backend/.env.example`. No Auth0 client secret or Google OAuth credential belongs
-in this repository. Auth0 performs Google sign-in through Universal Login;
-Django validates the resulting RS256 API token and remains the authorization
-system.
-
-The demo keeps its access token in memory. The React client should use
-`@auth0/auth0-react` with an `Auth0Provider`, the API audience, and the default
-memory cache, then obtain tokens with `getAccessTokenSilently()` and send them as
-Bearer tokens. Do not put access tokens in `localStorage`. After login, call
-`POST /api/v1/auth/migrate-guest/` with both the bearer token and guest cookie;
-the operation is idempotent and returns a recoverable conflict without deleting
-guest data when the account is at capacity.
-
-### Refreshing verified official guidance
-
-The source registry is seeded during every build, but page retrieval is never
-performed during a web request. Run the restricted refresh command from a Render
-Shell (or a scheduled Render job using the same repository and environment):
-
-```bash
-python manage.py refresh_official_sources
-```
-
-The command fetches only pre-registered HTTPS URLs on approved government
-domains, validates the final redirect destination, caps response size, splits
-HTML by headings, and records an immutable revision. The first fetch is accepted.
-Later content changes are quarantined: affected sources stop entering new Gemini
-prompts until someone reviews the revision in Django admin and explicitly runs:
-
-```bash
-python manage.py refresh_official_sources --source SOURCE_UUID --accept-changes
-```
-
-Schedule the check daily if the registry includes volatile fees, forms, or
-processing-time pages; otherwise weekly is the default freshness window. If a
-source is broken, changed-but-unreviewed, or older than its configured window,
-new guides receive no factual claims or citation from it. Existing guides retain
-their original heading, excerpt, deep link, and retrieval time as an audit
-snapshot. The command performs zero Gemini calls.
-
-### Using a live Gemini key
-
-Set `GEMINI_API_KEY` and `AI_ENABLED=true` in `.env`. Two commands verify it —
-neither runs as part of `manage.py test`, neither spends quota unless you set
-`AI_LIVE_TESTS=true` first:
-
-```bash
-python manage.py verify_gemini   # confirms the model id is still live, then
-                                  # exercises all four AI operations for real
-python manage.py eval_gemini     # 8 realistic prompts, printed for a human to
-                                  # judge extraction quality by eye
-```
-
-Gemini model ids get retired on a schedule this codebase can't track — trusting
-a hardcoded default is trusting a guess, which is exactly what `verify_gemini`
-exists to check before you rely on it.
-
----
-
-## The demo, in six steps
-
-1. **Open the seeded journey.** A study permit extension with four recorded
-   events across IRCC and a university office.
-2. **Read "You are here."**
-   *"Your last recorded interaction with IRCC, on September 24, 2026, reported
-   the matter as still processing."* Note the tense — see below.
-3. **Add something in plain words.** Type
-   *"I called IRCC today. They said it's still processing and told me not to
-   submit another one."* The system reflects back what it understood —
-   *"Got it — you called IRCC and they said your application is still
-   processing"* — with one button: **Yes, that's right.** One tap, not a
-   seven-field form. "Edit details" is there if something's off, and a draft
-   the system itself flags as unsure skips straight to the form instead of
-   pretending to be confident.
-4. **See what changed.** *"Because you recorded this, your status moved from
-   Active to Waiting."* The app tells you what your action actually did,
-   instead of silently refreshing.
-5. **Press "I'm stuck."** A bounded answer: what happened, what's unresolved,
-   the last instruction, the responsible organization, and official links with
-   the date each was last checked. Not a chat window.
-6. **Press "Hand me off."** A copyable case summary, generated from confirmed
-   records only, ending with an actual question the recipient can answer.
-
-Come back after a few quiet days and the journey card says so — *"You haven't
-recorded anything new in 9 days"* — never a claim about how long the
-government normally takes, only about your own recording gap. Correcting or
-deleting a past entry (Edit/Delete on any timeline row) reports what changed
-the same way.
-
-Then the part worth watching:
-
-```bash
-AI_ENABLED=false .venv/Scripts/python.exe manage.py runserver
-```
-
-**Every screen above still works.** Not a degraded mode with features missing —
-the same product.
-
----
-
-## Two decisions that shape everything
-
-### 1. The deterministic engine is the default, not the fallback
-
-`services/ai/` defines one interface with two real implementations. `RuleBasedAIService`
-reads cue words, resolves relative dates and matches organizations against a
-curated directory. `GeminiAIService` does the same job with a model, behind
-constrained JSON decoding and Pydantic validation. A factory picks one; any
-timeout, malformed response or provider outage falls through to the deterministic
-engine and reports `degraded: true`.
-
-This is not a hedge. A civic tool that stops working when a vendor has an outage,
-a quota runs out, or the library wifi drops is not dependable enough for the
-people who need it most. It also keeps the core free of proprietary dependencies
-and makes the AI genuinely replaceable rather than nominally so.
-
-The honest tradeoff: the rule-based reading is more literal than a model's and
-will miss unusual phrasings. That is exactly why every draft goes to the citizen
-for review before it is saved. The review step isn't a formality bolted onto an AI
-feature — it's the mechanism that makes a modest extractor safe to depend on.
-
-### 2. Generated content can never become evidence
-
-`derive_journey_state()` is a pure function over confirmed, non-AI breadcrumbs.
-The exclusion is enforced in the ORM query *and* on the model, so no caller can
-bypass it. Handoff summaries are generated and returned but never stored —
-persisting one would create a record that could later be mistaken for something
-an official actually said.
-
-**Tense is a correctness requirement, not copy polish.** The system says *"your
-last recorded interaction reported X"*, never *"your application is X"*. It has no
-authoritative live data and must not imply that it does. There is a test
-asserting the forbidden phrasings never appear. The difference between reporting
-evidence and asserting fact is the difference between a trustworthy civic tool and
-one that misleads someone about their immigration status.
-
-### 3. Gemini is a limited external resource, not a normal function call
-
-Every read that doesn't need language understanding — the timeline, the
-current state, confirming a breadcrumb, correcting one, deleting one,
-official-source lookup — costs zero AI calls, always. Only three actions ever
-reach a model, each capped at one call: interpreting a new sentence, creating
-a journey from a description, and (opt-in only) rewording an already-complete
-summary. `AIGateway` enforces the one-call budget in code — a second call
-within one action raises rather than silently proceeding, so a future change
-that tried to chain calls together would fail a test, not ship.
-
-Provider failures are never automatically retried. A **429** cannot resolve
-within the request, and even a transient **503** falls through immediately to
-the deterministic engine. This keeps the stronger invariant that one explicit
-action can spend at most one Gemini call.
-
-A live evaluation suite (`manage.py eval_gemini`, 8 varied prompts) caught
-something a mocked test never could: Gemini's own judgment about whether a
-detail needs clarifying isn't reliable — it sometimes said no even with an
-unconfirmed organization on an interaction, and once said yes with no actual
-question attached. Both are now enforced as invariants on the data contract
-itself (`BreadcrumbDraft`'s validators), so they hold no matter which
-extractor produced the draft, not just the one that happened to get tested.
-
----
-
-## How the constraints were actually addressed
-
-- **Accessibility** — the API returns structure, never prose-only, so a client can
-  render large type and high contrast. Provenance is shown as words
-  (*"Recorded by you"*, *"Official source"*), never colour alone. The state panel
-  is an `aria-live` region; every control is a real button with visible focus.
-  Non-digital channels — phone, letter, in person — are first-class breadcrumb
-  types, because telling someone their government interactions should have been
-  online is not help.
-- **Privacy** — data minimization by construction. There is no field in the schema
-  for a SIN, date of birth, passport number, address or financial detail. A
-  reference number is optional and only captured when the citizen labelled it as
-  one, so we never hoover up stray digits. Context sent to a model is the journey
-  goal and current state — never the full history.
-- **Trust** — four-way provenance on every record, an explicit "we don't know"
-  answer when no organization matches, and official links carrying the date a
-  human last verified them.
-- **Limited resources and connectivity** — zero AI calls on every read path;
-  full function offline.
-- **Legacy systems** — requires no government integration and no institution's
-  cooperation to be useful on day one.
-
-### What it deliberately will not do
-
-Make government decisions · determine legal status · give legal or immigration
-advice · submit applications on your behalf · invent an official contact, form or
-deadline · claim a live application status it cannot verify · behave as a
-general-purpose chatbot.
-
-A refusal, for instance, produces *"No further action has been recorded"* — not a
-suggestion to appeal. That's a legal question and not ours to answer. Equally,
-when the correct answer is *"nobody needs to hear from you, wait"*, it says so
-rather than manufacturing someone to call.
-
----
-
-## Architecture
-
-```
-React client  →  DRF API  →  domain services  →  models / PostgreSQL
-                                   ↓
-                            AI gateway (optional)  →  Gemini
-```
-
-A modular monolith, two Django apps.
-
-```
-backend/
-├── apps/journeys/     Journey + Breadcrumb, state derivation, stuck, handoff
-├── apps/directory/    Curated organizations and official sources
-├── services/ai/       One interface, two implementations, intent gate, prompts
-├── common/            Error envelope, dev auth, throttling, deploy checks
-└── demo/              Dependency-free fallback UI
-```
-
-Files worth reading first:
-
-| File | Why |
-|---|---|
-| `apps/journeys/state.py` | The pure function the whole product rests on |
-| `services/ai/factory.py` | Fallback and the one-call-per-action invariant |
-| `services/ai/rules.py` | The deterministic engine |
-| `services/ai/intent.py` | Scope gate; injection handled as data |
-| `apps/directory/selectors.py` | Why we never invent an institution |
-
-### API
-
-```
-POST   /api/v1/journeys/                                ≤1 AI call, includes the suggested guide
-GET    /api/v1/journeys/{id}/                            0   ← staleness rides along
-GET    /api/v1/journeys/{id}/guide/                      0   ← suggested steps, separate from evidence
-POST   /api/v1/guide-steps/{id}/complete/                0, idempotent, links one confirmed breadcrumb
-POST   /api/v1/journeys/{id}/breadcrumbs/interpret/     ≤1, persists nothing, paraphrase included
-POST   /api/v1/journeys/{id}/breadcrumbs/                0, the only write path, reports what changed
-PATCH|DELETE /api/v1/breadcrumbs/{id}/                   0, reports what changed
-GET    /api/v1/journeys/{id}/state/                      0   ← "you left off here"
-GET    /api/v1/journeys/{id}/stuck/                      0 unless ?polish=true, then ≤1, prose only
-GET    /api/v1/journeys/{id}/responsible-organization/   0
-POST   /api/v1/journeys/{id}/handoff/                    0 unless polish requested, then ≤1, persists nothing
-POST   /api/v1/journeys/{id}/notes/                      0   ← always-open escape hatch
-GET    /api/v1/auth/config/                              0   ← Auth0 domain/client id/audience, for the SPA
-GET    /api/v1/auth/status/                              0   ← guest vs. account, journey quota
-POST   /api/v1/auth/migrate-guest/                       0, idempotent, guest identified via session cookie only
-```
-
-Other guarantees: ownership failures return **404, not 403**, so journey ids
-can't be enumerated; a client `request_id` makes submission idempotent; AI-backed
-routes are rate limited while reads never are, and the throttle itself only
-engages when a request can actually reach a model.
-
----
-
-## Tests
+### Tests
 
 ```bash
 cd backend
 .venv/Scripts/python.exe manage.py test
 ```
 
-136 tests, no network access required — `manage.py test` forces AI off
-regardless of what's in `.env`, so a real key sitting there can never make the
-suite flaky or dependent on quota. They cover state derivation (including the
-tense rule and the staleness thresholds), the full API lifecycle including
-closing-the-loop reporting, ownership, idempotency, throttling, schema
-validation of model output (including the cross-extractor clarification
-invariants), the no-automatic-retry Gemini policy, the out-of-scope gate,
-prompt injection, prompt fencing, an end-to-end pass with AI switched off
-entirely, and — 21 tests specifically — guide-step ownership across
-guests/accounts, idempotent guest-to-account migration, journey-quota and
-AI-quota enforcement, session expiry, and Auth0 token validation (valid,
-expired, wrong-audience).
+216 tests, no network access required — `manage.py test` forces AI off regardless of `.env`, so a live key can never make the suite flaky or quota-dependent.
+
+## Try it — a short demo path
+
+1. Open **[breadcrumbs.select](https://breadcrumbs.select/)**.
+2. Continue as a guest, or sign in with Google.
+3. Describe a goal in your own words (try it in French, too).
+4. Look at the suggested guide it creates.
+5. Add something that happened, in plain language.
+6. Review how it was understood, and confirm it.
+7. Watch the current state and guide progress update.
+8. Press **I'm stuck** for a bounded summary of where things stand.
+9. Press **Hand me off** to generate a copyable case summary.
+
+## Future direction
+
+- Extending the curated directory to more public-service domains
+- Delegated, permissioned access for a family member or caregiver
+- Selective, temporary sharing of a Journey (rather than a full account)
+- Additional languages beyond English and French
+- Aggregated, privacy-preserving patterns that could help institutions understand common friction points across journeys — without exposing any individual's record
 
 ---
-
-## Status and what's next
-
-Complete: the full vertical slice above, the suggested-guide layer, the curated
-directory, official sources, rate limiting, OpenAPI, the demo interface, and
-guest access + Auth0 Google sign-in (see above) — real `Auth0JWTAuthentication`
-(JWKS/RS256/issuer/audience validation), server-created guest sessions, and
-idempotent guest-to-account migration, all unit-tested. What's left there is
-configuration, not code: an Auth0 tenant with a Single Page Application, a
-custom API for the audience, and the Google social connection enabled — see
-`AUTH0_DOMAIN`/`AUTH0_CLIENT_ID`/`AUTH0_AUDIENCE` in `.env`. Until those are
-set, `/api/v1/auth/config/` reports itself disabled and the sign-in button
-says so rather than pretending to work.
-
-Not built, deliberately: an actor/change-log style audit trail beyond the
-`created_at`/`updated_at` every model already carries (the citizen's own
-words are preserved verbatim and never overwritten — see "Two decisions that
-shape everything" above — which already covers most of the practical need
-here), voice input, bilingual content, and the aggregate "civic friction map".
-Each is a real idea; none of them make the core flow better, and a demo of
-eleven things that work beats a demo of thirty that half-work.
 
 **All demo data is synthetic.** Nothing here is an official government record.
