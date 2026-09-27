@@ -304,6 +304,23 @@ OFFICIAL_SOURCES = [
         "description_fr": "Admissibilité officielle et étapes de demande pour la couverture santé de l'Ontario.",
         "topic": "health card",
     },
+    {
+        "organization": "Government of Ontario",
+        "title": "Renew a driver's licence",
+        "title_fr": "Renouveler un permis de conduire",
+        "url": "https://www.ontario.ca/page/renew-drivers-licence",
+        # Verified live (2026-09-27): the page's own Français toggle link.
+        "url_fr": "https://www.ontario.ca/fr/page/renouveler-permis-de-conduire",
+        "description": (
+            "Official process and current fees for renewing an Ontario "
+            "driver's licence online or at a ServiceOntario centre."
+        ),
+        "description_fr": (
+            "Processus officiel et frais actuels pour renouveler un permis "
+            "de conduire de l'Ontario en ligne ou dans un centre ServiceOntario."
+        ),
+        "topic": "driver licence",
+    },
 ]
 
 
