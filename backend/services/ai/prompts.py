@@ -108,11 +108,18 @@ def journey_prompt(user_text):
                 "and follow up when appropriate. Never invent a form name, URL, "
                 "fee, deadline, eligibility rule, processing time, organization, "
                 "or document requirement. Tell the person to verify specifics on "
-                "the relevant official service. If one missing fact materially "
-                "changes the process, set needs_clarification and ask exactly one "
-                "focused question; still return a safe generic guide. Return a "
-                "short guide_summary explaining that the steps are independent "
-                "guidance and official requirements must be verified."
+                "the relevant official service. For every step, also set topic to "
+                "a short 2-4 word phrase naming what that step is about (for "
+                "example \"required documents\", \"eligibility\", \"submission "
+                "channel\", \"processing times\"). This is only used afterwards to "
+                "look up a matching link in an already-curated, human-verified "
+                "directory of official government pages -- it is not a URL, form "
+                "name, or fact, so it never needs verification itself; leave it "
+                "blank rather than guess if nothing fits. If one missing fact "
+                "materially changes the process, set needs_clarification and ask "
+                "exactly one focused question; still return a safe generic guide. "
+                "Return a short guide_summary explaining that the steps are "
+                "independent guidance and official requirements must be verified."
             ),
         ]
     )

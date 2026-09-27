@@ -198,7 +198,7 @@ def seed_directory(stdout=None):
     created_sources = 0
     for entry in OFFICIAL_SOURCES:
         organization = Organization.objects.get(name=entry["organization"])
-        _, created = OfficialSource.objects.update_or_create(
+        source, created = OfficialSource.objects.update_or_create(
             organization=organization,
             url=entry["url"],
             defaults={
@@ -209,6 +209,11 @@ def seed_directory(stdout=None):
                 "verified_at": now,
             },
         )
+        # Belt-and-braces: fail the seed loudly rather than silently persist a
+        # non-government link. update_or_create doesn't run model validation
+        # on its own, so this is what actually makes OfficialSource.clean()
+        # (government-domain + federal/provincial-only rule) bite here.
+        source.full_clean()
         created_sources += int(created)
 
     if stdout is not None:

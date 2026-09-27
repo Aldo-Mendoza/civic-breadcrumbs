@@ -293,8 +293,10 @@ Files worth reading first:
 ### API
 
 ```
-POST   /api/v1/journeys/                                ≤1 AI call
+POST   /api/v1/journeys/                                ≤1 AI call, includes the suggested guide
 GET    /api/v1/journeys/{id}/                            0   ← staleness rides along
+GET    /api/v1/journeys/{id}/guide/                      0   ← suggested steps, separate from evidence
+POST   /api/v1/guide-steps/{id}/complete/                0, idempotent, links one confirmed breadcrumb
 POST   /api/v1/journeys/{id}/breadcrumbs/interpret/     ≤1, persists nothing, paraphrase included
 POST   /api/v1/journeys/{id}/breadcrumbs/                0, the only write path, reports what changed
 PATCH|DELETE /api/v1/breadcrumbs/{id}/                   0, reports what changed
@@ -303,6 +305,9 @@ GET    /api/v1/journeys/{id}/stuck/                      0 unless ?polish=true, 
 GET    /api/v1/journeys/{id}/responsible-organization/   0
 POST   /api/v1/journeys/{id}/handoff/                    0 unless polish requested, then ≤1, persists nothing
 POST   /api/v1/journeys/{id}/notes/                      0   ← always-open escape hatch
+GET    /api/v1/auth/config/                              0   ← Auth0 domain/client id/audience, for the SPA
+GET    /api/v1/auth/status/                              0   ← guest vs. account, journey quota
+POST   /api/v1/auth/migrate-guest/                       0, idempotent, guest identified via session cookie only
 ```
 
 Other guarantees: ownership failures return **404, not 403**, so journey ids
@@ -319,27 +324,40 @@ cd backend
 .venv/Scripts/python.exe manage.py test
 ```
 
-128 tests, no network access required — `manage.py test` forces AI off
+136 tests, no network access required — `manage.py test` forces AI off
 regardless of what's in `.env`, so a real key sitting there can never make the
 suite flaky or dependent on quota. They cover state derivation (including the
 tense rule and the staleness thresholds), the full API lifecycle including
 closing-the-loop reporting, ownership, idempotency, throttling, schema
 validation of model output (including the cross-extractor clarification
 invariants), the no-automatic-retry Gemini policy, the out-of-scope gate,
-prompt injection, prompt
-fencing, and an end-to-end pass with AI switched off entirely.
+prompt injection, prompt fencing, an end-to-end pass with AI switched off
+entirely, and — 21 tests specifically — guide-step ownership across
+guests/accounts, idempotent guest-to-account migration, journey-quota and
+AI-quota enforcement, session expiry, and Auth0 token validation (valid,
+expired, wrong-audience).
 
 ---
 
 ## Status and what's next
 
-Complete: the full vertical slice above, plus the curated directory, official
-sources, rate limiting, OpenAPI and the demo interface.
+Complete: the full vertical slice above, the suggested-guide layer, the curated
+directory, official sources, rate limiting, OpenAPI, the demo interface, and
+guest access + Auth0 Google sign-in (see above) — real `Auth0JWTAuthentication`
+(JWKS/RS256/issuer/audience validation), server-created guest sessions, and
+idempotent guest-to-account migration, all unit-tested. What's left there is
+configuration, not code: an Auth0 tenant with a Single Page Application, a
+custom API for the audience, and the Google social connection enabled — see
+`AUTH0_DOMAIN`/`AUTH0_CLIENT_ID`/`AUTH0_AUDIENCE` in `.env`. Until those are
+set, `/api/v1/auth/config/` reports itself disabled and the sign-in button
+says so rather than pretending to work.
 
-Not built, deliberately: Auth0 (the dev identity is one line from being swapped
-out — ownership is already enforced against `request.user` everywhere), voice
-input, bilingual content, and the aggregate "civic friction map". Each is a real
-idea; none of them make the core flow better, and a demo of eleven things that
-work beats a demo of thirty that half-work.
+Not built, deliberately: an actor/change-log style audit trail beyond the
+`created_at`/`updated_at` every model already carries (the citizen's own
+words are preserved verbatim and never overwritten — see "Two decisions that
+shape everything" above — which already covers most of the practical need
+here), voice input, bilingual content, and the aggregate "civic friction map".
+Each is a real idea; none of them make the core flow better, and a demo of
+eleven things that work beats a demo of thirty that half-work.
 
 **All demo data is synthetic.** Nothing here is an official government record.

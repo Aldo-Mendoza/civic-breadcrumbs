@@ -1,0 +1,38 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Secrets — never committed (backend/.gitignore also covers this; kept here
+# too since this is the actual git root, and a stray root-level .env would
+# not otherwise be excluded).
+.env
+.env.*
+!.env.example
+
+# Local dev database
+db.sqlite3
+db.sqlite3-journal
+
+# Django
+staticfiles/
+media/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+
+# Accidental duplicate-save artifacts (seen in this repo's history as
+# "file 2.ext" — a Save-As/merge-tool accident, not intentional content).
+* [0-9].py
+* [0-9].js
+* [0-9].html
+* [0-9].ts
+* [0-9].tsx
+
+# Node (frontend, once it lands)
+node_modules/
+dist/
+build/

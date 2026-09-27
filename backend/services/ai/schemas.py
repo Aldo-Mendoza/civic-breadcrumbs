@@ -187,6 +187,11 @@ class GuideStepDraft(BaseModel):
 
     title: str = ""
     description: str = ""
+    #: A short (2-4 word) phrase naming what this step is about, e.g.
+    #: "required documents" or "submission channel" -- used only to find a
+    #: relevant curated official link for *this* step, never to assert a new
+    #: fact. Optional; an empty topic just means no link gets attached.
+    topic: str = ""
 
     @field_validator("title")
     @classmethod
@@ -197,6 +202,11 @@ class GuideStepDraft(BaseModel):
     @classmethod
     def _cap_description(cls, value):
         return (value or "").strip()[:MAX_GUIDE_STEP_DESCRIPTION]
+
+    @field_validator("topic")
+    @classmethod
+    def _cap_topic(cls, value):
+        return (value or "").strip()[:60]
 
 
 class JourneyDraft(BaseModel):
@@ -314,8 +324,9 @@ JOURNEY_RESPONSE_SCHEMA = {
                 "properties": {
                     "title": {"type": "string"},
                     "description": {"type": "string"},
+                    "topic": {"type": "string"},
                 },
-                "required": ["title", "description"],
+                "required": ["title", "description", "topic"],
             },
         },
         "needs_clarification": {"type": "boolean"},

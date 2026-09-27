@@ -3,7 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Civic Breadcrumbs | Your guide</title>
+  <title>brdcrmbs | Civic Breadcrumbs</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="{% static 'demo/img/favicon-32x32.png' %}">
+  <link rel="icon" type="image/png" href="{% static 'demo/img/favicon.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'demo/img/apple-touch-icon.jpeg' %}">
   <link rel="stylesheet" href="{% static 'demo/app.css' %}">
 </head>
 <body>
@@ -13,9 +16,10 @@
     <button class="icon-button menu-button" id="menu-button" aria-label="Open journeys menu" aria-expanded="false" aria-controls="sidebar">
       <span></span><span></span><span></span>
     </button>
-    <button class="brand" id="home-button" type="button">Your guide</button>
+    <button class="brand" id="home-button" type="button">
+      <img src="{% static 'demo/img/logo.jpeg' %}" alt="brdcrmbs — Civic Breadcrumbs, home">
+    </button>
     <div class="header-actions">
-      <span class="demo-badge">Concept demo</span>
       <button class="profile-button" id="profile-button" aria-label="Account and sign in">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0H5Z"/></svg>
       </button>
@@ -31,8 +35,13 @@
       </div>
       <button class="icon-button close-icon" id="close-sidebar" aria-label="Close menu">×</button>
     </div>
-    <button class="button primary full" id="sidebar-new">Start a new goal <span>→</span></button>
+    <button class="button primary full" id="sidebar-new">Start a new goal <span aria-hidden="true">→</span></button>
+    <p class="sidebar-quota" id="sidebar-quota" hidden></p>
     <ul class="sidebar-list" id="journey-list"></ul>
+    <div class="sidebar-empty" id="sidebar-empty" hidden>
+      <p>No journeys yet.</p>
+      <span>Start a new goal above to begin your first one.</span>
+    </div>
     <div class="sidebar-note">
       <strong>Your record, not a government file.</strong>
       <span>Check official services for live application status.</span>
@@ -40,7 +49,40 @@
   </aside>
 
   <main id="main">
-    <section class="screen create-screen" id="create-screen" aria-labelledby="create-title">
+    <section class="screen landing-screen" id="landing-screen" aria-labelledby="landing-title">
+      <div class="landing-hero">
+        <p class="eyebrow">Civic Breadcrumbs</p>
+        <h1 id="landing-title">Don't make me start over.</h1>
+        <p class="lede">Public-service journeys get scattered across websites, emails, and phone calls. brdcrmbs keeps a structured record of what happened, where you left off, and what to do next — so you never have to re-explain your situation from scratch.</p>
+        <div class="landing-actions">
+          <button class="button primary" id="landing-start">Start your journey <span aria-hidden="true">→</span></button>
+          <button class="button secondary" id="landing-signin">Sign in with Google</button>
+        </div>
+      </div>
+
+      <div class="landing-steps">
+        <div class="landing-step">
+          <span class="question-orb" aria-hidden="true">+</span>
+          <div><strong>Record what happened</strong><p>Describe a call, an email, or a form you submitted in your own words. We structure it; you confirm it before it's saved.</p></div>
+        </div>
+        <div class="landing-step">
+          <span class="question-orb" aria-hidden="true">→</span>
+          <div><strong>See where you left off</strong><p>Your current state and next recorded action, derived only from what you've confirmed — never guessed.</p></div>
+        </div>
+        <div class="landing-step">
+          <span class="question-orb" aria-hidden="true">?</span>
+          <div><strong>Get unstuck</strong><p>A bounded summary of what's known, what's unresolved, and who's responsible — not an open-ended chatbot.</p></div>
+        </div>
+        <div class="landing-step">
+          <span class="question-orb" aria-hidden="true">✓</span>
+          <div><strong>Hand it off</strong><p>Generate a clear case summary so a caseworker, advisor, or family member can pick up exactly where you are.</p></div>
+        </div>
+      </div>
+
+      <p class="privacy-note">Independent guidance, not a government service. It can't make decisions, access government case files, or submit applications on your behalf.</p>
+    </section>
+
+    <section class="screen create-screen" id="create-screen" aria-labelledby="create-title" hidden>
       <div class="create-wrap">
         <p class="eyebrow">Start your journey</p>
         <h1 id="create-title">What would you like to do?</h1>
@@ -113,7 +155,7 @@
           <h2>What you recorded</h2>
           <p>Open an event to review or correct what you recorded.</p>
         </div>
-        <button class="button primary" id="add-event">Record what happened <span>→</span></button>
+        <button class="button primary" id="add-event">Record what happened <span aria-hidden="true">→</span></button>
       </div>
 
       <ol class="timeline-list" id="timeline-list"></ol>
@@ -123,17 +165,17 @@
       </div>
 
       <div class="journey-actions">
-        <button class="button secondary" id="stuck-button">?<span>I’m stuck</span></button>
+        <button class="button secondary" id="stuck-button"><span aria-hidden="true">?</span><span>I’m stuck</span></button>
         <button class="button secondary" id="organization-button">Who handles this?</button>
-        <button class="button secondary" id="handoff-button">Prepare a handoff</button>
-        <button class="button primary" id="complete-button">✓ Mark journey complete</button>
+        <button class="button secondary" id="handoff-button">Hand me off</button>
+        <button class="button primary" id="complete-button"><span aria-hidden="true">✓</span> Mark my journey complete</button>
       </div>
       <p class="action-feedback" id="action-feedback" hidden role="status"></p>
     </section>
 
     <section class="screen completion-screen" id="completion-screen" hidden>
       <div class="completion-wrap">
-        <div class="completion-check">✓</div>
+        <div class="completion-check" aria-hidden="true">✓</div>
         <p class="eyebrow" id="completion-label">Journey complete</p>
         <h1>You’ve completed your guide</h1>
         <p class="lede">Your Journey is marked complete in your personal record.</p>
@@ -162,7 +204,7 @@
       </div>
       <div class="modal-actions split">
         <button class="button secondary" data-close="goal-confirm-modal">Back</button>
-        <button class="button primary" id="confirm-create">Build my guide <span>→</span></button>
+        <button class="button primary" id="confirm-create">Build my guide <span aria-hidden="true">→</span></button>
       </div>
     </section>
   </div>
@@ -172,14 +214,14 @@
     <section class="modal wide" role="dialog" aria-modal="true" aria-labelledby="record-title">
       <button class="modal-close" data-close="record-modal" aria-label="Close">×</button>
       <div id="record-input-stage">
-        <div class="modal-title-row"><span class="question-orb">+</span><div><p class="eyebrow">Add to your Journey</p><h2 id="record-title">What happened?</h2></div></div>
+        <div class="modal-title-row"><span class="question-orb" aria-hidden="true">+</span><div><p class="eyebrow">Add to your Journey</p><h2 id="record-title">What happened?</h2></div></div>
         <p class="context-chip" id="record-context"></p>
         <label for="event-text">Describe it in your own words</label>
         <textarea id="event-text" maxlength="4000" placeholder="I called IRCC today. They said it is still processing and told me not to submit another application."></textarea>
         <p class="field-help">Your original words are always kept exactly as you wrote them.</p>
         <div class="modal-actions split">
           <button class="button secondary" id="save-note">Save as a plain note</button>
-          <button class="button primary" id="interpret-event">Review what I said <span>→</span></button>
+          <button class="button primary" id="interpret-event">Review what I said <span aria-hidden="true">→</span></button>
         </div>
       </div>
 
@@ -192,7 +234,7 @@
         <div class="notice" id="draft-notice" hidden></div>
         <div class="modal-actions split">
           <button class="button secondary" id="back-to-event">Back</button>
-          <div class="button-row"><button class="button secondary" id="edit-draft">Edit details</button><button class="button primary" id="confirm-event">Add to Journey <span>→</span></button></div>
+          <div class="button-row"><button class="button secondary" id="edit-draft">Edit details</button><button class="button primary" id="confirm-event">Add to Journey <span aria-hidden="true">→</span></button></div>
         </div>
       </div>
 
@@ -221,10 +263,10 @@
       <h2 id="guide-step-title"></h2>
       <p class="modal-lede" id="guide-step-description"></p>
       <div class="step-source" id="guide-step-source" hidden></div>
-      <div class="saved-place"><span>✓</span><div><strong>Guidance is separate from your record</strong><p>This step changes only when you record what happened or explicitly mark it complete.</p></div></div>
+      <div class="saved-place"><span aria-hidden="true">✓</span><div><strong>Guidance is separate from your record</strong><p>This step changes only when you record what happened or explicitly mark it complete.</p></div></div>
       <div class="modal-actions split">
         <button class="button secondary" id="record-guide-step">Record what happened</button>
-        <button class="button primary" id="complete-guide-step">Mark step complete <span>→</span></button>
+        <button class="button primary" id="complete-guide-step">Mark step complete <span aria-hidden="true">→</span></button>
       </div>
     </section>
   </div>
@@ -233,11 +275,11 @@
     <div class="modal-backdrop" data-close="help-modal"></div>
     <section class="modal wide" role="dialog" aria-modal="true" aria-labelledby="help-title">
       <button class="modal-close" data-close="help-modal" aria-label="Close">×</button>
-      <div class="modal-title-row"><span class="question-orb">?</span><div><p class="eyebrow">Recovery guide</p><h2 id="help-title">Let’s work through this</h2></div></div>
+      <div class="modal-title-row"><span class="question-orb" aria-hidden="true">?</span><div><p class="eyebrow">Recovery guide</p><h2 id="help-title">Let’s work through this</h2></div></div>
       <p class="context-chip" id="help-context"></p>
       <div class="help-summary" id="help-summary"></div>
       <div class="saved-place"><span>⌑</span><div><strong>Your place is saved</strong><p>Close this window to return to the same Journey and timeline.</p></div></div>
-      <div class="modal-actions split"><button class="button secondary" data-close="help-modal">Return to Journey</button><button class="button primary" id="help-record">Record what happened <span>→</span></button></div>
+      <div class="modal-actions split"><button class="button secondary" data-close="help-modal">Return to Journey</button><button class="button primary" id="help-record">Record what happened <span aria-hidden="true">→</span></button></div>
     </section>
   </div>
 
@@ -248,7 +290,6 @@
       <p class="eyebrow" id="info-eyebrow">Journey information</p>
       <h2 id="info-title"></h2>
       <div id="info-content"></div>
-      <div class="modal-actions"><button class="button secondary" data-close="info-modal">Close</button></div>
     </section>
   </div>
 
@@ -258,7 +299,21 @@
       <button class="modal-close" data-close="account-modal" aria-label="Close">×</button>
       <p class="eyebrow">Save your work</p><h2 id="account-title">Sign in with Google</h2>
       <p>Your guest Journey is temporary. Auth0 securely handles Google sign-in; Civic Breadcrumbs keeps control of your Journey.</p>
-      <button class="button primary full" id="auth-login">Sign in with Google <span>→</span></button>
+      <button class="button primary full" id="auth-login">Sign in with Google <span aria-hidden="true">→</span></button>
+    </section>
+  </div>
+
+  <div class="modal-shell" id="confirm-modal" hidden>
+    <div class="modal-backdrop" id="confirm-modal-backdrop"></div>
+    <section class="modal compact-modal" role="alertdialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-message">
+      <button class="modal-close" id="confirm-modal-close" aria-label="Close">×</button>
+      <p class="eyebrow">Please confirm</p>
+      <h2 id="confirm-modal-title"></h2>
+      <p id="confirm-modal-message"></p>
+      <div class="modal-actions split">
+        <button class="button secondary" type="button" id="confirm-modal-cancel">Cancel</button>
+        <button class="button primary" type="button" id="confirm-modal-confirm">Confirm</button>
+      </div>
     </section>
   </div>
 

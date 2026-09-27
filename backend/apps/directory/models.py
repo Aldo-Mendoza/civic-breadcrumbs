@@ -7,9 +7,33 @@ next step resolves through *known application data* rather than being invented
 by a language model (§21).
 """
 import uuid
+from urllib.parse import urlparse
 
+from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from django.db import models
+
+#: The only hostnames a curated official link may point to: Government of
+#: Canada (federal) and Government of Ontario (provincial). This is a
+#: structural guarantee, not a policy statement -- a link that fails this
+#: check cannot be saved as an OfficialSource, regardless of how it got there
+#: (seed data, admin panel, or any future authoring path). Municipal and
+#: institutional organizations (e.g. City of Ottawa, a university) can still
+#: be named as the *responsible organization* for a journey (§21 allows that),
+#: they simply never get an attached official-source link under this rule.
+GOVERNMENT_DOMAIN_SUFFIXES = (
+    "canada.ca",
+    "gc.ca",
+    "ontario.ca",
+    "gov.on.ca",
+)
+
+
+def is_government_domain(url):
+    """Whether a URL's hostname is (or is a subdomain of) an allowed
+    federal or provincial government domain."""
+    host = (urlparse(url or "").hostname or "").lower()
+    return any(host == suffix or host.endswith("." + suffix) for suffix in GOVERNMENT_DOMAIN_SUFFIXES)
 
 
 class Jurisdiction(models.TextChoices):
@@ -70,3 +94,37 @@ class OfficialSource(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+    def clean(self):
+        """
+        Enforce the government-domain rule at the model layer, so it can never
+        be bypassed by a future write path (admin panel, a new seed entry, an
+        eventual authoring endpoint) that forgets to check it explicitly.
+        """
+        super().clean()
+        if self.url and not is_government_domain(self.url):
+            raise ValidationError(
+                {
+                    "url": (
+                        "Official sources may only link to Government of "
+                        "Canada (canada.ca / gc.ca) or Government of Ontario "
+                        "(ontario.ca / gov.on.ca) domains. Never invent or "
+                        "link an unofficial source (§21)."
+                    )
+                }
+            )
+        if self.organization_id and self.organization.jurisdiction not in (
+            Jurisdiction.FEDERAL,
+            Jurisdiction.PROVINCIAL,
+        ):
+            raise ValidationError(
+                {
+                    "organization": (
+                        "Official sources may only be attached to a federal "
+                        "or provincial organization. A municipal or "
+                        "institutional organization can still be named as "
+                        "the responsible organization for a journey (§21) -- "
+                        "it just cannot carry an official-source link."
+                    )
+                }
+            )

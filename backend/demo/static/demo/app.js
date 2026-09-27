@@ -16,6 +16,7 @@
     auth0: null,
     authMode: "guest",
   };
+  let confirmResolveFn = null;
 
   const STATUS_LABELS = {
     ACTIVE: "Active",
@@ -100,11 +101,38 @@
     if (!document.querySelector(".modal-shell:not([hidden])")) document.body.style.overflow = "";
   }
 
+  function confirmModal(options) {
+    const opts = options || {};
+    $("confirm-modal-title").textContent = opts.title || "Please confirm";
+    $("confirm-modal-message").textContent = opts.message || "";
+    const confirmButton = $("confirm-modal-confirm");
+    confirmButton.textContent = opts.confirmLabel || "Confirm";
+    confirmButton.className = opts.danger ? "button danger" : "button primary";
+    $("confirm-modal-cancel").textContent = opts.cancelLabel || "Cancel";
+    openModal("confirm-modal");
+    return new Promise((resolve) => { confirmResolveFn = resolve; });
+  }
+
+  function resolveConfirm(result) {
+    closeModal("confirm-modal");
+    if (confirmResolveFn) {
+      const resolve = confirmResolveFn;
+      confirmResolveFn = null;
+      resolve(result);
+    }
+  }
+
   function showScreen(name) {
+    $("landing-screen").hidden = name !== "landing";
     $("create-screen").hidden = name !== "create";
     $("journey-screen").hidden = name !== "journey";
     $("completion-screen").hidden = name !== "completion";
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function showLanding() {
+    $("landing-signin").hidden = state.authMode !== "guest";
+    showScreen("landing");
   }
 
   function openSidebar() {
@@ -127,8 +155,8 @@
     const csrfResponse = await fetch(API + "/auth/csrf/", { credentials: "include" });
     state.csrfToken = (await csrfResponse.json()).csrf_token || "";
     const config = await fetch(API + "/auth/config/", { credentials: "include" }).then((r) => r.json());
-    if (config.enabled && typeof createAuth0Client === "function") {
-      state.auth0 = await createAuth0Client({
+    if (config.enabled && window.auth0 && typeof window.auth0.createAuth0Client === "function") {
+      state.auth0 = await window.auth0.createAuth0Client({
         domain: config.domain,
         clientId: config.client_id,
         cacheLocation: "memory",
@@ -137,7 +165,11 @@
           redirect_uri: window.location.origin + window.location.pathname,
         },
       });
-      if (location.search.includes("code=") && location.search.includes("state=")) {
+      if (location.search.includes("error=")) {
+        const params = new URLSearchParams(location.search);
+        toast(params.get("error_description") || "Sign-in with Google could not be completed.");
+        history.replaceState({}, document.title, location.pathname);
+      } else if (location.search.includes("code=") && location.search.includes("state=")) {
         await state.auth0.handleRedirectCallback();
         history.replaceState({}, document.title, location.pathname);
       }
@@ -153,20 +185,47 @@
     }
     const status = await api("/auth/status/");
     state.authMode = status.mode;
+    state.journeyLimit = status.journey_limit;
   }
+
+  function relativeDay(value) {
+    if (!value) return "";
+    const diffDays = Math.round((Date.now() - new Date(value).getTime()) / 86400000);
+    if (diffDays <= 0) return "Updated today";
+    if (diffDays === 1) return "Updated yesterday";
+    if (diffDays < 7) return `Updated ${diffDays} days ago`;
+    return "Updated " + formatDate(value);
+  }
+
+  const ACTIVE_STATUSES = ["ACTIVE", "WAITING", "ACTION_REQUIRED"];
 
   function renderSidebar() {
     const list = $("journey-list");
+    const empty = $("sidebar-empty");
     list.innerHTML = "";
+    if (empty) empty.hidden = state.journeys.length > 0;
+
     state.journeys.forEach((journey) => {
       const li = document.createElement("li");
       const button = document.createElement("button");
       button.className = state.current && state.current.id === journey.id ? "active" : "";
-      button.innerHTML = `<strong>${escapeHTML(journey.title)}</strong><small>${escapeHTML(STATUS_LABELS[journey.status] || journey.status)}</small>`;
+      const goalSnippet = journey.goal && journey.goal !== journey.title ? escapeHTML(journey.goal) : "";
+      button.innerHTML = `
+        <strong>${escapeHTML(journey.title)}</strong>
+        ${goalSnippet ? `<span class="sidebar-goal">${goalSnippet}</span>` : ""}
+        <small><span class="status-pill ${escapeHTML(journey.status)}">${escapeHTML(STATUS_LABELS[journey.status] || journey.status)}</span> ${escapeHTML(relativeDay(journey.updated_at))}</small>`;
       button.addEventListener("click", async () => { closeSidebar(); await selectJourney(journey.id); });
       li.appendChild(button);
       list.appendChild(li);
     });
+
+    const quota = $("sidebar-quota");
+    if (quota) {
+      const activeCount = state.journeys.filter((journey) => ACTIVE_STATUSES.includes(journey.status)).length;
+      const limit = state.journeyLimit;
+      quota.textContent = limit ? `${activeCount} of ${limit} active journeys used` : "";
+      quota.hidden = !limit;
+    }
   }
 
   async function loadJourneys() {
@@ -255,19 +314,48 @@
     });
   }
 
+  /*
+   * A link-preview style card for a curated official source: site name,
+   * description, and the bare URL as its own visible line -- the same shape
+   * as a normal chat-app link preview, so a citizen recognizes it as a real,
+   * verifiable government page rather than inline blue text. Built entirely
+   * from our own curated, human-verified fields (title/description/url); this
+   * never fetches live metadata from the target site (CLAUDE.md §9.5).
+   */
+  function siteNameFor(url) {
+    try {
+      const host = new URL(url).hostname.replace(/^www\./, "");
+      return host.endsWith("canada.ca") ? "Canada.ca" : host.endsWith("ontario.ca") ? "Ontario.ca" : host;
+    } catch (error) {
+      return "Official source";
+    }
+  }
+
+  function renderSourceCard(container, source, organization) {
+    if (!source) {
+      container.hidden = true;
+      container.innerHTML = "";
+      return;
+    }
+    container.hidden = false;
+    const siteName = (organization && (organization.short_name || organization.name)) || siteNameFor(source.url);
+    const verified = source.verified_at ? `Link checked ${formatDate(source.verified_at)}` : "Curated official source";
+    container.innerHTML = `
+      <div class="source-preview">
+        <p class="source-eyebrow">${escapeHTML(siteName)}</p>
+        <strong>${escapeHTML(source.title)}</strong>
+        <p>${escapeHTML(source.description || "Check the current official instructions before acting.")}</p>
+        <a href="${escapeHTML(source.url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(source.url)}</a>
+        <span class="source-verified">${escapeHTML(verified)}</span>
+      </div>`;
+  }
+
   function openGuideStep(step) {
     state.activeGuideStep = step;
     $("guide-step-position").textContent = `Step ${step.position} of ${(state.current.guide.steps || []).length} • ${GUIDE_STATUS_LABELS[step.status] || step.status}`;
     $("guide-step-title").textContent = step.title;
     $("guide-step-description").textContent = step.description;
-    const source = $("guide-step-source");
-    if (step.official_source) {
-      source.hidden = false;
-      source.innerHTML = `<strong>Verified official source</strong><p>${escapeHTML(step.official_source.description || "Check the current official instructions before acting.")}</p><a href="${escapeHTML(step.official_source.url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(step.official_source.title)} ↗</a>`;
-    } else {
-      source.hidden = true;
-      source.innerHTML = "";
-    }
+    renderSourceCard($("guide-step-source"), step.official_source, step.organization);
     $("complete-guide-step").disabled = step.status === "COMPLETED";
     $("complete-guide-step").textContent = step.status === "COMPLETED" ? "Step complete" : "Mark step complete →";
     openModal("guide-step-modal");
@@ -447,7 +535,14 @@
   }
 
   async function deleteEvent() {
-    if (!state.editing || !confirm("Remove this event from your Journey?")) return;
+    if (!state.editing) return;
+    const confirmed = await confirmModal({
+      title: "Remove this event?",
+      message: "This removes it from your Journey record. This can't be undone.",
+      confirmLabel: "Remove event",
+      danger: true,
+    });
+    if (!confirmed) return;
     try {
       const result = await api(`/breadcrumbs/${state.editing.id}/`, { method: "DELETE" });
       closeModal("record-modal");
@@ -498,7 +593,12 @@
   }
 
   async function markComplete() {
-    if (!confirm("Mark this Journey complete in your personal record? This does not claim that a government application was approved.")) return;
+    const confirmed = await confirmModal({
+      title: "Mark this Journey complete?",
+      message: "This updates your personal record only — it does not claim that a government application was approved.",
+      confirmLabel: "Mark complete",
+    });
+    if (!confirmed) return;
     try {
       const payload = {
         kind: "STATUS_UPDATE", channel: "OTHER", title: "Journey marked complete",
@@ -558,7 +658,14 @@
 
   async function showAccount() {
     if (state.authMode === "account") {
-      showInfo("Your Journey is saved", "Signed in", "<p>You are signed in through Auth0. Django continues to control Journey ownership and access.</p>");
+      showInfo(
+        "Your Journey is saved",
+        "Signed in",
+        `<p>You are signed in through Auth0. Django continues to control Journey ownership and access.</p>
+         <p><button class="button secondary" id="sign-out-button">Sign out</button></p>`
+      );
+      const signOutButton = $("sign-out-button");
+      if (signOutButton) signOutButton.addEventListener("click", signOut);
       return;
     }
     openModal("account-modal");
@@ -566,11 +673,21 @@
     if (!state.auth0) $("auth-login").textContent = "Configure Auth0 to enable sign-in";
   }
 
+  async function signOut() {
+    closeModal("info-modal");
+    if (!state.auth0) return;
+    await state.auth0.logout({
+      logoutParams: { returnTo: window.location.origin + window.location.pathname },
+    });
+  }
+
   function bindEvents() {
     $("menu-button").addEventListener("click", openSidebar);
     $("close-sidebar").addEventListener("click", closeSidebar);
     $("sidebar-scrim").addEventListener("click", closeSidebar);
-    $("home-button").addEventListener("click", () => state.current ? showScreen("journey") : startNewGoal());
+    $("home-button").addEventListener("click", () => state.current ? showScreen("journey") : showLanding());
+    $("landing-start").addEventListener("click", startNewGoal);
+    $("landing-signin").addEventListener("click", showAccount);
     $("crumb-home").addEventListener("click", openSidebar);
     $("sidebar-new").addEventListener("click", startNewGoal);
     $("completion-new").addEventListener("click", startNewGoal);
@@ -603,6 +720,10 @@
     $("complete-guide-step").addEventListener("click", completeGuideStep);
     $("edit-journey").addEventListener("click", editJourney);
     $("auth-login").addEventListener("click", async () => { if (state.auth0) await state.auth0.loginWithRedirect({ authorizationParams: { screen_hint: "login" } }); });
+    $("confirm-modal-confirm").addEventListener("click", () => resolveConfirm(true));
+    $("confirm-modal-cancel").addEventListener("click", () => resolveConfirm(false));
+    $("confirm-modal-backdrop").addEventListener("click", () => resolveConfirm(false));
+    $("confirm-modal-close").addEventListener("click", () => resolveConfirm(false));
     document.querySelectorAll("[data-close]").forEach((el) => el.addEventListener("click", () => closeModal(el.dataset.close)));
     document.addEventListener("keydown", (event) => {
       if (event.key !== "Escape") return;
@@ -620,10 +741,10 @@
       populateOrganizationSelect();
       const journeys = await loadJourneys();
       if (journeys.length) await selectJourney(journeys[0].id);
-      else startNewGoal();
+      else showLanding();
     } catch (error) {
       toast(error.message || "The app could not load. Is the server running?");
-      startNewGoal();
+      showLanding();
     }
   }
 

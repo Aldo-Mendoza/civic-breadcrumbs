@@ -229,7 +229,13 @@ AI_TIMEOUT_SECONDS = float(os.environ.get("AI_TIMEOUT_SECONDS", "8"))
 AI_LIVE_TESTS = env_bool("AI_LIVE_TESTS", default=False)
 
 # Development identity. Never enabled when DEBUG is off (enforced in auth.py).
-DEV_AUTH_ENABLED = env_bool("DEV_AUTH_ENABLED", default=RUNNING_TESTS)
+#
+# Same RUNNING_TESTS reasoning as AI_ENABLED above: the test suite relies on
+# this fixed identity shortcut, so it must never depend on whatever a
+# developer happens to have in their local .env (e.g. turned off to test real
+# guest/Auth0 behaviour) -- otherwise the same command can pass on one
+# machine and fail on another for reasons unrelated to the code under test.
+DEV_AUTH_ENABLED = True if RUNNING_TESTS else env_bool("DEV_AUTH_ENABLED", default=False)
 DEV_USER_EMAIL = os.environ.get("DEV_USER_EMAIL", "demo@civicbreadcrumbs.local")
 
 # Bounded text limits (CLAUDE.md §29).

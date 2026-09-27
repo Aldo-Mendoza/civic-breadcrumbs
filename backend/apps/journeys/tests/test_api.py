@@ -18,7 +18,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from apps.directory.models import Organization
+from apps.directory.models import Organization, is_government_domain
 from apps.directory.seed import seed_directory
 from apps.journeys import enums
 from apps.journeys.models import Breadcrumb, Journey
@@ -429,6 +429,67 @@ class GuideProgressTests(ApiTestCase):
         )
         self.assertEqual(response.status_code, 404)
         self.assertEqual(self.journey.breadcrumbs.count(), 0)
+
+
+class GuideStepOfficialSourceTests(ApiTestCase):
+    """
+    Different steps that need different things (gathering documents vs.
+    checking processing times) must get different, relevant links instead of
+    the whole guide silently sharing one link -- this is the actual gap the
+    request "add a link to the step about filling in forms" was pointing at.
+    """
+
+    def test_steps_with_different_topics_get_different_official_sources(self):
+        guide = create_guide(
+            self.journey,
+            RuleBasedAIService().extract_journey("Extend my study permit"),
+        )
+        steps = list(guide.steps.all())
+        self.assertGreaterEqual(len(steps), 3)
+        # IRCC has three seeded sources (study permit / processing times /
+        # contact); the study-permit branch's steps carry matching topic
+        # hints, so this must not collapse onto one repeated source.
+        sources = {step.official_source_id for step in steps}
+        self.assertGreater(len(sources), 1)
+
+    def test_a_step_topic_matches_its_own_seeded_source_not_a_generic_one(self):
+        guide = create_guide(
+            self.journey,
+            RuleBasedAIService().extract_journey("Extend my study permit"),
+        )
+        tracking_step = guide.steps.get(title="Track updates and instructions")
+        self.assertIsNotNone(tracking_step.official_source)
+        self.assertEqual(tracking_step.official_source.topic, "processing times")
+
+    def test_no_curated_source_for_the_organization_leaves_every_step_unset(self):
+        """The honest gap: no guessed link when nothing is genuinely curated
+        for this organization (§21)."""
+        ottawa = Organization.objects.get(short_name="City of Ottawa")
+        journey = Journey.objects.create(
+            user=self.user,
+            title="Property tax question",
+            goal="Understand my property tax bill",
+            primary_organization=ottawa,
+        )
+        guide = create_guide(
+            journey, RuleBasedAIService().extract_journey("Property tax question")
+        )
+        self.assertTrue(
+            all(step.official_source is None for step in guide.steps.all())
+        )
+
+    def test_official_source_shown_to_the_citizen_is_never_a_non_government_link(self):
+        """Belt-and-braces: whatever gets attached and served over the API is
+        provably one of the curated, government-domain-validated sources."""
+        guide = create_guide(
+            self.journey,
+            RuleBasedAIService().extract_journey("Extend my study permit"),
+        )
+        response = self.client.get(reverse("journey-guide", args=[self.journey.id]))
+        for step in response.json()["steps"]:
+            source = step.get("official_source")
+            if source:
+                self.assertTrue(is_government_domain(source["url"]))
 
 
 class ZeroAICostTests(ApiTestCase):

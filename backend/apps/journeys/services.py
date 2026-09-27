@@ -16,11 +16,8 @@ from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from apps.directory.selectors import (
-    match_organization_by_name,
-    match_organization_by_topic,
-    official_sources_for,
-)
+from apps.directory.models import OfficialSource
+from apps.directory.selectors import match_organization_by_name, match_organization_by_topic
 
 from . import duplicates, enums
 from .models import Breadcrumb, Guide, GuideStep, Journey
@@ -81,30 +78,70 @@ def create_guide(journey, draft=None):
     )
     guide.steps.all().delete()
     organization = journey.primary_organization
-    haystack = " ".join([journey.title or "", journey.goal or ""]).lower()
-    sources = (
-        official_sources_for(journey, organization=organization, limit=5)
+    # Strictly scoped to this organization -- unlike official_sources_for()
+    # (used elsewhere for a "show something helpful anyway" fallback), a guide
+    # step must never borrow a different organization's link just because this
+    # one has nothing curated. That would be actively misleading, not merely
+    # imprecise (§21).
+    candidates = (
+        list(OfficialSource.objects.filter(organization=organization, active=True))
         if organization is not None
         else []
     )
-    official_source = next(
-        (
-            source
-            for source in sources
-            if source.topic and source.topic.lower() in haystack
-        ),
-        None,
-    )
-    for position, step in enumerate(draft.guide_steps[:6], start=1):
+    steps = draft.guide_steps[:6]
+    assignments = _assign_official_sources(steps, candidates)
+    for position, (step, source) in enumerate(zip(steps, assignments), start=1):
         GuideStep.objects.create(
             guide=guide,
             position=position,
             title=step.title,
             description=step.description,
             organization=organization,
-            official_source=official_source,
+            official_source=source,
         )
     return guide
+
+
+def _assign_official_sources(steps, candidates):
+    """
+    Pick one official source per guide step, so distinct steps that need
+    different things (e.g. "gather documents" vs. "check processing times")
+    get distinct, relevant links instead of the whole guide silently sharing
+    one link or none at all.
+
+    Preference order per step: (1) an exact topic match against the step's own
+    ``topic`` hint, since that's the most specific real signal available;
+    (2) otherwise, round-robin across whatever curated sources exist for the
+    organization, so steps still show *some* variety rather than collapsing
+    onto a single repeated link; (3) ``None`` when there is nothing curated
+    for this organization at all -- an honest gap, never a guess (§21).
+    """
+    if not candidates:
+        return [None for _ in steps]
+
+    by_topic = {source.topic.strip().lower(): source for source in candidates if source.topic}
+    assignments = []
+    fallback_index = 0
+    for step in steps:
+        topic = (step.topic or "").strip().lower()
+        match = by_topic.get(topic) if topic else None
+        if match is None and topic:
+            # Loose match: either phrase contains the other (e.g. step topic
+            # "required documents" against a source topic "documents").
+            match = next(
+                (
+                    source
+                    for source in candidates
+                    if source.topic
+                    and (topic in source.topic.lower() or source.topic.lower() in topic)
+                ),
+                None,
+            )
+        if match is None:
+            match = candidates[fallback_index % len(candidates)]
+            fallback_index += 1
+        assignments.append(match)
+    return assignments
 
 
 def create_journey(
