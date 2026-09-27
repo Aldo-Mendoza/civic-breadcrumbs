@@ -49,3 +49,9 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
     },
 }
+
+# A missing optional asset (for example a favicon left behind in an old build
+# cache) must not turn an otherwise healthy page into a 500 response. WhiteNoise
+# still uses hashed manifest assets when present and falls back to the original
+# static path when an entry is absent.
+WHITENOISE_MANIFEST_STRICT = False
