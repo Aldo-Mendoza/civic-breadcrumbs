@@ -297,6 +297,26 @@ class ProseSummary(BaseModel):
         return (value or "").strip()[:MAX_SUMMARY]
 
 
+class OrganizationDraft(BaseModel):
+    """
+    A proposed responsible-organization classification for grounding.
+
+    The smallest possible draft: one field. Never itself shown to the citizen
+    or persisted -- it only decides which source_context Journey creation's
+    second call is grounded in (§17, §21). The gateway still validates it
+    against the curated directory before it's trusted for anything.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    organization: str = ""
+
+    @field_validator("organization")
+    @classmethod
+    def _cap_org(cls, value):
+        return (value or "").strip()[:MAX_ORGANIZATION]
+
+
 #: JSON schema handed to Gemini for constrained decoding. Kept in sync with
 #: BreadcrumbDraft by the contract tests.
 BREADCRUMB_RESPONSE_SCHEMA = {
@@ -361,4 +381,10 @@ PROSE_RESPONSE_SCHEMA = {
     "type": "object",
     "properties": {"summary": {"type": "string"}},
     "required": ["summary"],
+}
+
+ORGANIZATION_RESPONSE_SCHEMA = {
+    "type": "object",
+    "properties": {"organization": {"type": "string"}},
+    "required": ["organization"],
 }

@@ -816,11 +816,13 @@ Edit confirmed fields       = 0 AI calls
 Delete Breadcrumb           = 0 AI calls
 Confirm Breadcrumb          = 0 AI calls
 Official source lookup      = 0 AI calls
-Create Journey              <= 1 AI call
+Create Journey              <= 2 AI calls (organization classification, then the guide grounded in that organization's official sources)
 Interpret Breadcrumb        <= 1 AI call
 I'm Stuck                   <= 1 AI call
 Generate Handoff            <= 1 AI call
 ```
+
+Create Journey is the one documented exception to "one call per action." Keyword-substring organization matching alone is brittle (a short keyword can collide with an unrelated word inside another word), and citation grounding needs the correct organization *before* it can fetch the verified excerpts Gemini is allowed to cite from. The first call classifies the organization (validated against the curated directory exactly like breadcrumb interpretation already does -- an unverifiable answer is dropped, never trusted); the second proposes the guide, grounded in that organization's official sources. The deterministic rule-based engine is unaffected by this -- it stays keyword-based by design, since its purpose is to work with no AI available at all.
 
 Prefer deterministic code whenever possible.
 

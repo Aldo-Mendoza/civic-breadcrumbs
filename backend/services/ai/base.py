@@ -30,6 +30,10 @@ class AIService(Protocol):
         """Propose a journey title and goal from a free-text description."""
         ...
 
+    def classify_organization(self, user_text: str, known_organizations: list) -> str:
+        """Name the single best-matching curated organization, or "" if unsure."""
+        ...
+
     def extract_breadcrumb(
         self, user_text: str, minimal_context: dict
     ) -> BreadcrumbDraft:

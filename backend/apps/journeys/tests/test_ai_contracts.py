@@ -48,6 +48,7 @@ class FakeFailingService:
     extract_breadcrumb = _fail
     summarize_stuck_state = _fail
     generate_handoff = _fail
+    classify_organization = _fail
 
 
 class FakeWorkingService:
@@ -98,6 +99,10 @@ class FakeWorkingService:
     def generate_handoff(self, snapshot):
         self.calls += 1
         return ProseSummary(summary="A clearer handoff.", extractor="gemini")
+
+    def classify_organization(self, user_text, known_organizations):
+        self.calls += 1
+        return "Immigration, Refugees and Citizenship Canada"
 
 
 class SchemaValidationTests(TestCase):
@@ -710,6 +715,21 @@ class NoChainingTests(TestCase):
             gateway.generate_handoff({"summary": "second"})
         self.assertIn("at most", str(ctx.exception))
 
+    def test_journey_creation_may_spend_exactly_two_calls_not_more(self):
+        """
+        §17's one documented exception: organization classification, then the
+        guide itself, both against the same gateway instance -- still bounded,
+        just at 2 instead of the default 1. Other actions are unaffected
+        (get_gateway() with no override still defaults to max_calls=1).
+        """
+        gateway = AIGateway(
+            primary=FakeWorkingService(), fallback=RuleBasedAIService(), max_calls=2
+        )
+        gateway.classify_organization("some text", [])
+        gateway.extract_journey("some text")
+        with self.assertRaises(AICallBudgetExceeded):
+            gateway.summarize_stuck_state({"summary": "third call"})
+
 
 class OrganizationRestrictionTests(TestCase):
     """§21 -- the model may not introduce an institution we cannot verify."""
@@ -737,6 +757,52 @@ class OrganizationRestrictionTests(TestCase):
             GeminiAIService._restrict_organization("ircc", context),
             "Immigration, Refugees and Citizenship Canada",
         )
+
+
+class OrganizationClassificationTests(TestCase):
+    """
+    §17's one documented two-call exception: Journey creation may ask AI to
+    identify the organization before grounding, so a keyword-collision case
+    like "since" containing "sin" (fixed separately) can't recur -- semantic
+    understanding, not substring matching, decides the organization.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        seed_directory()
+
+    def test_ai_correctly_classifies_a_case_a_keyword_table_would_mismatch(self):
+        from apps.directory.selectors import known_organizations
+
+        service, client = _service_with_scripted_client(
+            [
+                SimpleNamespace(
+                    text=json.dumps({"organization": "Government of Ontario"})
+                )
+            ]
+        )
+        organization = service.classify_organization(
+            "drivers license renewal. i need to renew my drivers license "
+            "since it is about to expire, i am in ottawa canada.",
+            known_organizations(),
+        )
+        self.assertEqual(organization, "Government of Ontario")
+        self.assertEqual(client.calls, 1)
+
+    def test_a_fabricated_organization_from_classification_is_dropped(self):
+        from apps.directory.selectors import known_organizations
+
+        service, _ = _service_with_scripted_client(
+            [
+                SimpleNamespace(
+                    text=json.dumps({"organization": "Department of Made Up Things"})
+                )
+            ]
+        )
+        organization = service.classify_organization(
+            "Something unrelated to any known service.", known_organizations()
+        )
+        self.assertEqual(organization, "")
 
 
 class PromptFencingTests(TestCase):

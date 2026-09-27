@@ -136,6 +136,38 @@ def breadcrumb_prompt(user_text, minimal_context):
     )
 
 
+def organization_prompt(user_text, known_organizations):
+    """
+    First of Journey creation's two calls (§17): which curated organization,
+    if any, is this description about?
+
+    Deliberately tiny and separate from journey_prompt -- it must return fast
+    so its (validated) answer can ground the second call's source_context
+    before the guide itself is generated, rather than guessing from keyword
+    matches the way organization resolution used to work everywhere.
+    """
+    known = known_organizations or []
+    org_names = ", ".join(entry.get("name", "") for entry in known if entry.get("name"))
+
+    return "\n\n".join(
+        [
+            _ROLE_GUARD,
+            _fence(user_text),
+            (
+                "Organizations you may name (use one of these exactly, or "
+                "leave the field empty): " + (org_names or "none")
+            ),
+            (
+                "Return only a JSON object with a single \"organization\" "
+                "field: the one curated organization above that this "
+                "description is about, copied exactly, or an empty string if "
+                "you are not confident or none of them fit. Never invent an "
+                "organization that is not in the list above."
+            ),
+        ]
+    )
+
+
 def journey_prompt(user_text, source_context=None):
     """Prompt for proposing a journey and a small, non-authoritative guide."""
     source_context = source_context or []

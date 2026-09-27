@@ -127,6 +127,9 @@ class AIGateway:
             return self._run("extract_journey", user_text, source_context)
         return self._run("extract_journey", user_text)
 
+    def classify_organization(self, user_text, known_organizations):
+        return self._run("classify_organization", user_text, known_organizations)
+
     def extract_breadcrumb(self, user_text, minimal_context):
         return self._run("extract_breadcrumb", user_text, minimal_context)
 
@@ -137,6 +140,6 @@ class AIGateway:
         return self._run("generate_handoff", journey_snapshot)
 
 
-def get_gateway(cache_namespace="shared"):
+def get_gateway(cache_namespace="shared", max_calls=1):
     """Build the gateway for one user action."""
-    return AIGateway(cache_namespace=cache_namespace)
+    return AIGateway(cache_namespace=cache_namespace, max_calls=max_calls)

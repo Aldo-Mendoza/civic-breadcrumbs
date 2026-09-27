@@ -45,9 +45,11 @@ from . import prompts
 from .schemas import (
     BREADCRUMB_RESPONSE_SCHEMA,
     JOURNEY_RESPONSE_SCHEMA,
+    ORGANIZATION_RESPONSE_SCHEMA,
     PROSE_RESPONSE_SCHEMA,
     BreadcrumbDraft,
     JourneyDraft,
+    OrganizationDraft,
     ProseSummary,
 )
 
@@ -182,6 +184,20 @@ class GeminiAIService:
         except Exception as exc:
             raise AIInvalidOutput(_("The AI service returned invalid fields.")) from exc
         return draft.model_copy(update={"extractor": self.name})
+
+    def classify_organization(self, user_text, known_organizations):
+        payload = self._generate(
+            prompts.organization_prompt(user_text, known_organizations),
+            ORGANIZATION_RESPONSE_SCHEMA,
+            "classify_organization",
+        )
+        try:
+            draft = OrganizationDraft(**payload)
+        except Exception as exc:
+            raise AIInvalidOutput(_("The AI service returned invalid fields.")) from exc
+        return self._restrict_organization(
+            draft.organization, {"known_organizations": known_organizations or []}
+        )
 
     def extract_breadcrumb(self, user_text, minimal_context):
         payload = self._generate(

@@ -18,6 +18,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.directory.selectors import (
+    known_organizations,
+    match_organization_by_name,
     match_organization_by_topic,
     official_sources_for,
     resolve_responsible_organization,
@@ -140,17 +142,32 @@ class JourneyListCreateView(APIView):
         extractor = "none"
         draft = None
         source_context = []
+        grounding_organization = None
 
-        # At most one model call proposes the intent and guide together.
+        # Two model calls propose the organization, then the guide grounded
+        # in it (§17's one documented exception -- see CLAUDE.md). Both are
+        # no-ops against the deterministic engine whenever AI isn't live, so
+        # this reduces to the original keyword-only path automatically.
         if description:
             if classify_intent(description) == enums.Intent.OUT_OF_SCOPE:
                 return Response(out_of_scope_response())
-            gateway = get_gateway(str(request.user.pk))
-            grounding_organization = match_organization_by_topic(
-                " ".join(part for part in (title, goal, description) if part)
+            gateway = get_gateway(str(request.user.pk), max_calls=2)
+            combined_text = " ".join(part for part in (title, goal, description) if part)
+
+            classified_name, degraded_classification = gateway.classify_organization(
+                combined_text, known_organizations()
             )
+            grounding_organization = (
+                match_organization_by_name(classified_name) if classified_name else None
+            )
+            if grounding_organization is None:
+                # AI declined, degraded, or named something unverifiable --
+                # the keyword backstop (§21) still applies.
+                grounding_organization = match_organization_by_topic(combined_text)
+
             source_context = source_context_for(description, grounding_organization)
-            draft, degraded = gateway.extract_journey(description, source_context)
+            draft, degraded_extraction = gateway.extract_journey(description, source_context)
+            degraded = degraded_classification or degraded_extraction
             title = title or draft.title
             goal = goal or draft.goal
             extractor = draft.extractor
@@ -166,6 +183,7 @@ class JourneyListCreateView(APIView):
             goal=goal or description,
             organization_name=(
                 payload.get("organization_name", "")
+                or (grounding_organization.name if grounding_organization else "")
                 or getattr(draft, "organization", "")
             ),
             guide_draft=draft,

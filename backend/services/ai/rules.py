@@ -26,6 +26,7 @@ from datetime import date, timedelta
 
 from django.utils.translation import get_language
 
+from apps.directory.selectors import match_organization_by_topic
 from apps.journeys import enums
 
 from .schemas import BreadcrumbDraft, GuideStepDraft, JourneyDraft, ProseSummary
@@ -852,6 +853,16 @@ class RuleBasedAIService:
             needs_clarification=bool(clarification),
             clarification_question=clarification,
         )
+
+    def classify_organization(self, user_text, known_organizations=None):
+        """
+        Interface parity with the AI contract only -- the deterministic
+        engine stays keyword-based by design (it must keep working with no
+        model available), so this simply re-runs the same curated-directory
+        matching used everywhere else rather than adding a second mechanism.
+        """
+        organization = match_organization_by_topic(user_text)
+        return organization.name if organization else ""
 
     # -- breadcrumbs -------------------------------------------------------
 
