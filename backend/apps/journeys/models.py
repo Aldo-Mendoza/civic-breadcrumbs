@@ -57,7 +57,11 @@ class Journey(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-updated_at"]
+        # A tiebreaker matters: auto_now/auto_now_add can tie within the same
+        # timestamp tick, and without one the relative order of two tied rows
+        # is undefined -- the "which journey is journeys[0]" candidate for the
+        # frontend's landing view would then be nondeterministic.
+        ordering = ["-updated_at", "-created_at", "-id"]
         indexes = [models.Index(fields=["user", "-updated_at"])]
 
     def __str__(self) -> str:
