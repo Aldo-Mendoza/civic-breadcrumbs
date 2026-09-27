@@ -101,7 +101,12 @@ class SourceRefreshTests(TestCase):
         self.assertEqual(self.source.content_hash, original_hash)
         self.assertEqual(self.source.etag, '"old"')
         self.assertEqual(self.source.sections.get(position=1).text, original_text)
-        self.assertFalse(self.source.revisions.first().accepted)
+        # Not .first(): two revisions can land in the same auto_now_add
+        # timestamp tick, making "-retrieved_at" ordering ambiguous between
+        # them. The actual invariant under test is that the newly-fetched,
+        # changed content is quarantined -- i.e. exactly one revision is not
+        # yet accepted -- not which specific row a tied ordering returns.
+        self.assertEqual(self.source.revisions.filter(accepted=False).count(), 1)
 
         result = refresh_source(
             self.source,
