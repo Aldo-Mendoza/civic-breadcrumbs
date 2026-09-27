@@ -117,6 +117,61 @@ class JourneyCreateTests(ApiTestCase):
         self.assertEqual(response.json()["type"], enums.Intent.OUT_OF_SCOPE)
         self.assertEqual(Journey.objects.count(), before)
 
+    def test_out_of_scope_french_description_does_not_create_a_journey(self):
+        before = Journey.objects.count()
+        self.client.cookies["django_language"] = "fr"
+        response = self.post(
+            reverse("journey-list"),
+            {"description": "Écris-moi un poème sur Ottawa."},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["type"], enums.Intent.OUT_OF_SCOPE)
+        self.assertEqual(Journey.objects.count(), before)
+
+    def test_a_plain_description_resolves_an_organization(self):
+        """
+        A create-journey call through the real API (not create_guide() called
+        directly against a pre-set organization) must resolve primary_organization
+        from free text. This was previously untested end-to-end in either
+        language. (Citation/official-source attachment itself is gated behind
+        Gemini supplying source_ids against grounded content -- see
+        apps/journeys/tests/test_grounded_guides.py -- so it isn't asserted
+        here, where AI is disabled and the deterministic fallback runs.)
+        """
+        response = self.post(
+            reverse("journey-list"),
+            {
+                "description": (
+                    "I want to extend my work permit. I haven't started anything "
+                    "yet and I'm not sure where to begin."
+                )
+            },
+        )
+        self.assertEqual(response.status_code, 201)
+        body = response.json()
+        self.assertEqual(body["primary_organization"]["short_name"], "IRCC")
+
+    def test_the_same_french_description_resolves_the_same_organization(self):
+        """
+        The French-language parity fix: the identical scenario, described in
+        French, must resolve the same organization as the English version
+        above -- this is what makes French journeys eligible for the same
+        grounded citations as English ones once Gemini is involved.
+        """
+        self.client.cookies["django_language"] = "fr"
+        response = self.post(
+            reverse("journey-list"),
+            {
+                "description": (
+                    "Je souhaite prolonger mon permis de travail. Je n'ai "
+                    "encore entrepris aucune démarche et je ne sais pas par "
+                    "où commencer."
+                )
+            },
+        )
+        self.assertEqual(response.status_code, 201)
+        body = response.json()
+        self.assertEqual(body["primary_organization"]["short_name"], "IRCC")
 
 
 class InterpretAndConfirmTests(ApiTestCase):
@@ -167,6 +222,17 @@ class InterpretAndConfirmTests(ApiTestCase):
         text = "I called IRCC today and they were not helpful at all."
         response = self.post(self.url(), {"text": text})
         self.assertEqual(response.json()["raw_text"], text)
+
+    def test_out_of_scope_text_is_rejected_before_any_model_call(self):
+        response = self.post(self.url(), {"text": "Write me a poem about Ottawa."})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["type"], enums.Intent.OUT_OF_SCOPE)
+
+    def test_out_of_scope_french_text_is_rejected_before_any_model_call(self):
+        self.client.cookies["django_language"] = "fr"
+        response = self.post(self.url(), {"text": "Écris-moi un poème sur Ottawa."})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["type"], enums.Intent.OUT_OF_SCOPE)
 
     def test_confirming_creates_evidence_and_updates_state(self):
         response = self.post(
@@ -589,6 +655,97 @@ class ZeroAICostTests(ApiTestCase):
         self.assertIn("Do not submit another application", body["summary"])
         self.assertIn("not an official government document", body["summary"])
         self.assertEqual(Breadcrumb.objects.count(), before)
+
+
+class FrenchApiLocalizationTests(ApiTestCase):
+    """
+    French localization, Phase C: the state/stuck/handoff endpoints must
+    return French deterministic text end-to-end through the real
+    LocaleMiddleware + django_language cookie path Phase A wired up -- not
+    just when the internal functions are called directly with the locale
+    already active.
+    """
+
+    def setUp(self):
+        super().setUp()
+        Breadcrumb.objects.create(
+            journey=self.journey,
+            kind=enums.BreadcrumbKind.INTERACTION,
+            channel=enums.Channel.PHONE,
+            title="Called IRCC",
+            organization=self.ircc,
+            organization_name=self.ircc.name,
+            occurred_at="2026-09-24T09:00:00Z",
+            structured_data={
+                "reported_status": enums.ReportedStatus.PROCESSING,
+                "instruction": "Do not submit another application",
+                "suggested_next_action": enums.NextActionCode.WAIT,
+            },
+        )
+        self.client.cookies["django_language"] = "fr"
+
+    def test_state_endpoint_is_french_through_the_cookie(self):
+        response = self.client.get(reverse("journey-state", args=[self.journey.id]))
+        body = response.json()
+        self.assertIn("Votre dernière interaction enregistrée", body["current_state"])
+        self.assertIn("toujours en traitement", body["current_state"])
+        self.assertIn("Attendez, comme on vous l'a dit", body["next_action"])
+
+    def test_stuck_endpoint_is_french_through_the_cookie(self):
+        response = self.client.get(
+            reverse("journey-stuck", args=[self.journey.id]) + "?polish=false"
+        )
+        body = response.json()
+        self.assertIn("Vous travaillez sur", body["summary"])
+        self.assertIn("toujours en traitement", body["current_state"])
+
+    def test_handoff_endpoint_is_french_through_the_cookie(self):
+        response = self.post(reverse("journey-handoff", args=[self.journey.id]), {})
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("RÉSUMÉ DU DOSSIER", body["summary"])
+        self.assertIn("document gouvernemental officiel", body["summary"])
+
+    def test_change_feedback_message_is_french_through_the_cookie(self):
+        """
+        apps/journeys/feedback.py's "Because you recorded this, your status
+        moved from X to Y" message -- found missing during live browser
+        verification, not by the original file-by-file sweep, which is
+        exactly why that verification step matters.
+        """
+        response = self.post(
+            reverse("breadcrumb-list", args=[self.journey.id]),
+            {
+                "kind": enums.BreadcrumbKind.STATUS_UPDATE,
+                "channel": enums.Channel.OTHER,
+                "title": "Approuvé",
+                "raw_text": "On m'a dit que ma demande a été approuvée.",
+                "reported_status": enums.ReportedStatus.APPROVED,
+                "occurred_on": "2026-09-25",
+            },
+        )
+        body = response.json()
+        self.assertEqual(response.status_code, 201)
+        self.assertIn("Parce que vous avez enregistré ceci", body["change"]["message"])
+        self.assertIn("votre statut est passé de", body["change"]["message"])
+
+    def test_default_locale_is_still_english_without_the_cookie(self):
+        self.client.cookies.pop("django_language", None)
+        response = self.client.get(reverse("journey-state", args=[self.journey.id]))
+        body = response.json()
+        self.assertIn("still processing", body["current_state"])
+
+    def test_responsible_organization_wait_message_is_french(self):
+        """
+        apps/directory/selectors.py's WAIT_MESSAGE -- found missing during
+        live browser verification (it displayed in English despite the rest
+        of the "Who handles this?" panel, including the curated French
+        official-source titles, being correctly French)."""
+        response = self.client.get(
+            reverse("journey-responsible-organization", args=[self.journey.id])
+        )
+        body = response.json()
+        self.assertIn("Aucune organisation n'a besoin d'entendre parler de vous", body["message"])
 
 
 class OrganizationResolutionTests(ApiTestCase):
