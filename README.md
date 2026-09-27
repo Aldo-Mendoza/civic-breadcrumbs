@@ -79,6 +79,28 @@ DATABASE_URL=postgres://civic:civic@127.0.0.1:5432/civic_breadcrumbs
 Copy `.env.example` to `.env` to configure anything. Every value has a working
 default.
 
+### Deploying on Render
+
+The repository includes a root-level `render.yaml` Blueprint. It provisions a
+Python web service and a PostgreSQL database, collects static files, applies
+migrations, starts Gunicorn, and checks `/health/` before routing traffic.
+
+1. Commit and push the repository to GitHub.
+2. In Render, select **New → Blueprint** and connect this repository.
+3. Keep the detected `render.yaml` path and apply the Blueprint.
+4. Wait for both `civic-breadcrumbs-db` and `civic-breadcrumbs` to become live.
+5. Open the service URL and verify `/health/` returns `{"status": "ok"}`.
+
+The first deployment deliberately uses the deterministic guide engine with
+`AI_ENABLED=false`. To enable Gemini later, add `GEMINI_API_KEY` as a secret in
+the Render service environment, set `AI_ENABLED=true`, and redeploy. Auth0 can
+likewise be enabled later with `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, and
+`AUTH0_AUDIENCE`; guest mode does not require them.
+
+For a custom or separate frontend domain, add its exact HTTPS origin to both
+`CORS_ALLOWED_ORIGINS` and `CSRF_TRUSTED_ORIGINS`, and add the hostname (without
+the scheme) to `ALLOWED_HOSTS`. Keep comma-separated values with no wildcard.
+
 ### Guest access and Auth0 Google sign-in
 
 Guest mode is the default. Django issues an HttpOnly opaque session cookie and

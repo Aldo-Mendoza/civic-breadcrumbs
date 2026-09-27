@@ -30,3 +30,22 @@ SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SECURE = True
 X_FRAME_OPTIONS = "DENY"
 CORS_ALLOW_ALL_ORIGINS = False
+
+# Render exposes the public service hostname at runtime. Trust only that exact
+# HTTPS origin in addition to any explicitly configured custom domains.
+RENDER_EXTERNAL_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "").strip()  # noqa: F405
+if RENDER_EXTERNAL_HOSTNAME:
+    if RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:  # noqa: F405
+        ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)  # noqa: F405
+    render_origin = f"https://{RENDER_EXTERNAL_HOSTNAME}"
+    if render_origin not in CSRF_TRUSTED_ORIGINS:  # noqa: F405
+        CSRF_TRUSTED_ORIGINS.append(render_origin)  # noqa: F405
+    if render_origin not in CORS_ALLOWED_ORIGINS:  # noqa: F405
+        CORS_ALLOWED_ORIGINS.append(render_origin)  # noqa: F405
+
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    },
+}
