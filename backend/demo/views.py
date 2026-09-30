@@ -20,3 +20,12 @@ class PrivacyView(TemplateView):
         context = super().get_context_data(**kwargs)
         context["privacy_contact_email"] = settings.PRIVACY_CONTACT_EMAIL
         return context
+
+
+class TermsView(TemplateView):
+    template_name = "demo/terms.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["contact_email"] = settings.PRIVACY_CONTACT_EMAIL
+        return context

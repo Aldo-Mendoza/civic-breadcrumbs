@@ -22,3 +22,27 @@ class PrivacyPageTests(SimpleTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, f'href="{reverse("privacy")}"')
         self.assertContains(response, "Privacy policy")
+        self.assertContains(response, f'href="{reverse("terms")}"')
+        self.assertContains(response, "Terms of Service")
+
+
+class TermsPageTests(SimpleTestCase):
+    @override_settings(PRIVACY_CONTACT_EMAIL="terms-test@example.com")
+    def test_terms_page_contains_core_terms(self):
+        response = self.client.get(reverse("terms"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Acceptable use and misuse rules")
+        self.assertContains(response, "you retain ownership of Your Content")
+        self.assertContains(response, "Limitation of liability")
+        self.assertContains(response, "non-waivable consumer right")
+        self.assertContains(response, "not a government service")
+        self.assertContains(response, "terms-test@example.com")
+        self.assertContains(response, f'href="{reverse("privacy")}"')
+        self.assertNotContains(response, "auth0-spa-js.production.js")
+
+    def test_privacy_page_footer_links_to_terms(self):
+        response = self.client.get(reverse("privacy"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'href="{reverse("terms")}"')
