@@ -193,6 +193,12 @@ AUTH0_CLIENT_ID = os.environ.get("AUTH0_CLIENT_ID", "").strip()
 AUTH0_ALGORITHMS = ("RS256",)
 AUTH0_ISSUER = f"https://{AUTH0_DOMAIN}/" if AUTH0_DOMAIN else ""
 
+# Public point of contact shown in the privacy policy. Deployments should
+# replace the default if the domain's privacy mailbox is handled elsewhere.
+PRIVACY_CONTACT_EMAIL = os.environ.get(
+    "PRIVACY_CONTACT_EMAIL", "privacy@breadcrumbs.select"
+).strip()
+
 GUEST_MAX_ACTIVE_JOURNEYS = int(os.environ.get("GUEST_MAX_ACTIVE_JOURNEYS", "1"))
 USER_MAX_ACTIVE_JOURNEYS = int(os.environ.get("USER_MAX_ACTIVE_JOURNEYS", "5"))
 

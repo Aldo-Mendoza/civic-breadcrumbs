@@ -1,0 +1,230 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy policy | brdcrmbs</title>
+  <meta name="description" content="How brdcrmbs collects, uses, stores, and shares personal information.">
+  <link rel="icon" type="image/x-icon" href="{% static 'demo/img/favicon.ico' %}">
+  <link rel="apple-touch-icon" href="{% static 'demo/img/apple-touch-icon.jpeg' %}">
+  <link rel="stylesheet" href="{% static 'demo/app.css' %}?v=20260930-privacy-1">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="app-header privacy-header">
+    <a class="brand privacy-brand" href="{% url 'demo' %}" aria-label="brdcrmbs home">
+      <img src="{% static 'demo/img/logo.jpeg' %}" alt="brdcrmbs">
+    </a>
+    <a class="button secondary compact" href="{% url 'demo' %}">Back to brdcrmbs</a>
+  </header>
+
+  <main class="privacy-page" id="main">
+    <article>
+      <header class="privacy-hero">
+        <p class="eyebrow">Your information</p>
+        <h1>Privacy policy</h1>
+        <p class="lede">This policy explains what information brdcrmbs collects, how it is collected, why it is used, and when it is shared.</p>
+        <p class="privacy-updated"><strong>Effective and last updated:</strong> September 30, 2026</p>
+      </header>
+
+      <aside class="privacy-alert" aria-labelledby="sensitive-information-title">
+        <h2 id="sensitive-information-title">Please do not enter sensitive identification</h2>
+        <p>Do not enter a Social Insurance Number, passport or driver's licence number, payment-card or bank details, passwords, medical records, immigration document numbers, or other information that could create a serious risk if exposed. Information entered into AI-assisted features is sent to the Google Gemini API as explained below.</p>
+      </aside>
+
+      <nav class="privacy-contents" aria-label="Privacy policy contents">
+        <strong>On this page</strong>
+        <a href="#scope">Scope</a>
+        <a href="#collection">Information collected</a>
+        <a href="#use">How it is used</a>
+        <a href="#ai">AI and Gemini</a>
+        <a href="#sharing">Sharing</a>
+        <a href="#cookies">Cookies</a>
+        <a href="#retention">Retention</a>
+        <a href="#choices">Your choices</a>
+        <a href="#contact">Contact</a>
+      </nav>
+
+      <section class="privacy-section" id="scope">
+        <h2>1. Who we are and what this policy covers</h2>
+        <p>brdcrmbs is an independent guidance and record-keeping tool for public-service processes. It is not a government service and cannot access a government file, make a government decision, or submit an application for you.</p>
+        <p>This policy applies to the brdcrmbs website and its journey, breadcrumb, sign-in, and AI-assisted features. “We,” “us,” and “brdcrmbs” refer to the operator of this service. The privacy lead is identified in the <a href="#contact">Contact us</a> section.</p>
+      </section>
+
+      <section class="privacy-section" id="collection">
+        <h2>2. Information we collect</h2>
+        <div class="privacy-table-wrap">
+          <table class="privacy-table">
+            <caption>Categories of information collected by the service</caption>
+            <thead><tr><th scope="col">Category</th><th scope="col">Examples</th><th scope="col">How it is collected</th></tr></thead>
+            <tbody>
+              <tr>
+                <th scope="row">Account and identity</th>
+                <td>A stable Auth0 account identifier and the email address returned during sign-in. Google and Auth0 may process a name or profile information during social sign-in, but brdcrmbs does not intentionally save a separate name field.</td>
+                <td>Received from Auth0 when you choose “Sign in with Google.”</td>
+              </tr>
+              <tr>
+                <th scope="row">Guest identity</th>
+                <td>A random internal guest identifier and an opaque session identifier. It is not intended to identify you in the real world.</td>
+                <td>Created automatically when you use the service without signing in.</td>
+              </tr>
+              <tr>
+                <th scope="row">Journey content</th>
+                <td>Your goal title and description; generated guide and steps; organizations; breadcrumb notes; instructions, next actions, status, dates, channels, references, and related structured fields.</td>
+                <td>Entered by you, generated with AI from your request, or confirmed by you after AI interpretation.</td>
+              </tr>
+              <tr>
+                <th scope="row">AI inputs and outputs</th>
+                <td>Goal text, selected journey context, breadcrumb text, generated summaries, suggested steps, interpretations, and support or handoff summaries.</td>
+                <td>Submitted when you use a feature that requests an AI-generated preview, guide, interpretation, or summary.</td>
+              </tr>
+              <tr>
+                <th scope="row">Technical and usage information</th>
+                <td>IP address, browser or device information, request date and time, requested page, security events, session activity, and AI rate-limit counts.</td>
+                <td>Collected automatically by the application and its hosting, identity, security, and network providers when your browser connects.</td>
+              </tr>
+              <tr>
+                <th scope="row">Communications</th>
+                <td>Your email address and the content of a privacy, support, or other message.</td>
+                <td>Collected when you contact us.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>If you type personal information into a free-text field, it becomes part of your journey content even if the service does not provide a dedicated field for it. brdcrmbs does not offer file uploads and does not intentionally collect payment information.</p>
+      </section>
+
+      <section class="privacy-section" id="use">
+        <h2>3. Why we use information</h2>
+        <p>We use information only for purposes a reasonable person would consider appropriate in the circumstances, including to:</p>
+        <ul>
+          <li>create, display, update, and preserve your journey and breadcrumbs;</li>
+          <li>generate the goal confirmation, step-by-step guide, breadcrumb interpretation, recovery help, and handoff summary you request;</li>
+          <li>authenticate signed-in users, maintain guest sessions, and transfer eligible guest work to a signed-in account;</li>
+          <li>operate, secure, troubleshoot, and improve the reliability and accessibility of the service;</li>
+          <li>prevent abuse, enforce usage limits, and investigate errors or security incidents;</li>
+          <li>respond to questions, privacy requests, and complaints; and</li>
+          <li>meet legal obligations and protect users, the public, and the service.</li>
+        </ul>
+        <p>When you voluntarily provide information or ask us to run an AI-assisted feature, you consent to the collection, use, and disclosure described at or before that interaction. If we want to use personal information for a materially new purpose, we will explain that purpose and obtain consent when required by law. You may withdraw consent for future processing, subject to reasonable notice and any legal or contractual limits.</p>
+        <p>We do not use journey content for advertising, sell or rent personal information, or disclose it for cross-context behavioural advertising.</p>
+      </section>
+
+      <section class="privacy-section" id="ai">
+        <h2>4. AI-assisted features and Google Gemini</h2>
+        <p>brdcrmbs uses the Google Gemini Developer API. When you use an AI-assisted feature, the service sends only the text and context needed for that task. Depending on the feature, this can include:</p>
+        <ul>
+          <li>your goal title and description, plus curated public-service source context, to summarize your request and build a guide;</li>
+          <li>a breadcrumb note and limited journey context to suggest structured details; or</li>
+          <li>limited journey and breadcrumb context to produce a recovery or handoff summary.</li>
+        </ul>
+        <p>AI output can be incomplete or wrong. Review it before relying on it and verify important information with the responsible official organization.</p>
+        <div class="privacy-callout">
+          <h3>Google's treatment depends on the API service tier</h3>
+          <p>Under Google's current Gemini API terms, content sent through unpaid services, and generated responses, may be used to provide, improve, and develop Google products and may be reviewed by human reviewers. For paid services, Google states that prompts and responses are not used to improve its products, although limited logging may be retained for safety, security, and abuse prevention. The deployment's billing tier can change, so you should assume AI inputs may be processed under the unpaid-service terms unless the operator confirms otherwise.</p>
+          <p><strong>Do not submit sensitive, confidential, or identifying information to an AI feature.</strong> Read the <a href="https://ai.google.dev/gemini-api/terms" rel="noopener noreferrer">Gemini API Additional Terms of Service</a> for Google's current terms.</p>
+        </div>
+        <p>AI results may be held in the application's in-memory cache for up to 15 minutes to reduce duplicate requests. Goal-preview output is not otherwise saved as a separate record. A breadcrumb interpretation is saved only after you confirm it; generated guides and guide steps are saved as part of the journey.</p>
+      </section>
+
+      <section class="privacy-section" id="sharing">
+        <h2>5. Who we share information with</h2>
+        <p>We disclose information only as needed to operate the service, when you direct us to, or when legally required. Current provider categories are:</p>
+        <div class="privacy-table-wrap">
+          <table class="privacy-table">
+            <caption>Service providers and information they may process</caption>
+            <thead><tr><th scope="col">Recipient</th><th scope="col">Purpose</th><th scope="col">Information involved</th></tr></thead>
+            <tbody>
+              <tr><th scope="row"><a href="https://render.com/privacy" rel="noopener noreferrer">Render</a></th><td>Application and database hosting</td><td>Account identifiers, journey and breadcrumb data, technical logs, IP addresses, and other data needed to host and secure the service.</td></tr>
+              <tr><th scope="row"><a href="https://auth0.com/privacy" rel="noopener noreferrer">Auth0 by Okta</a></th><td>Authentication and account security</td><td>Identity-provider identifier, email, sign-in and security information, and profile data made available by the selected connection.</td></tr>
+              <tr><th scope="row"><a href="https://policies.google.com/privacy" rel="noopener noreferrer">Google</a></th><td>Google social sign-in, when selected</td><td>Google account and sign-in information needed to authenticate you.</td></tr>
+              <tr><th scope="row"><a href="https://ai.google.dev/gemini-api/terms" rel="noopener noreferrer">Google Gemini API</a></th><td>Requested AI summaries, guidance, interpretations, and support text</td><td>The AI inputs and outputs described in section 4.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>We may also disclose information to advisers or authorities when reasonably necessary to comply with law, respond to valid legal process, investigate fraud or a security incident, or protect legal rights and safety. If the service is reorganized, financed, sold, or transferred, information may be disclosed under appropriate confidentiality protections and this policy or a replacement policy will apply.</p>
+        <p>The main page loads Auth0's browser library from an Auth0 content-delivery domain. Like other web servers, that provider may receive your IP address, browser information, and request metadata when the library loads, even before you sign in.</p>
+      </section>
+
+      <section class="privacy-section" id="cookies">
+        <h2>6. Cookies and browser storage</h2>
+        <p>brdcrmbs currently uses only storage needed to operate the service and remember your preferences. It does not use advertising cookies, tracking pixels, or third-party analytics.</p>
+        <div class="privacy-table-wrap">
+          <table class="privacy-table">
+            <caption>Cookies and local browser storage</caption>
+            <thead><tr><th scope="col">Name</th><th scope="col">Type and duration</th><th scope="col">Purpose</th></tr></thead>
+            <tbody>
+              <tr><th scope="row"><code>sessionid</code></th><td>Essential, HttpOnly session cookie; guest sessions are configured for 7 days.</td><td>Maintains the guest session and connects the browser to temporary journey data.</td></tr>
+              <tr><th scope="row"><code>csrftoken</code></th><td>Essential security cookie; up to about one year.</td><td>Protects forms and API requests against cross-site request forgery.</td></tr>
+              <tr><th scope="row"><code>django_language</code></th><td>Preference stored with the session.</td><td>Remembers the selected site language.</td></tr>
+              <tr><th scope="row"><code>brdcrmbs_locale</code></th><td>Local storage; remains until cleared by you or the browser.</td><td>Remembers the selected site language in this browser.</td></tr>
+              <tr><th scope="row">Auth0 token cache</th><td>Browser memory only; cleared when the page or browser context ends.</td><td>Holds the access token needed to make authenticated requests while you use the app.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>You can clear cookies and local storage through browser settings. Blocking an essential cookie can prevent guest sessions, sign-in, or form submissions from working.</p>
+      </section>
+
+      <section class="privacy-section" id="retention">
+        <h2>7. How long we keep information</h2>
+        <ul>
+          <li><strong>Guest data:</strong> guest sessions expire after 7 days. Associated guest journeys become eligible for deletion after expiry. Cleanup is triggered by later service activity, so deletion may not be immediate.</li>
+          <li><strong>Signed-in account and journey data:</strong> retained while the account is used and until you request deletion, or until it is no longer reasonably needed for the purposes in this policy, subject to legal requirements.</li>
+          <li><strong>AI cache:</strong> eligible AI results are cached in application memory for up to 15 minutes.</li>
+          <li><strong>Operational information:</strong> security logs, error logs, communications, and rate-limit counters are kept only as long as reasonably needed for security, support, abuse prevention, legal compliance, and reliable operation.</li>
+        </ul>
+        <p>Deletion from active systems may not immediately remove residual copies in provider backups or security logs. Providers may keep information under their own documented retention periods and legal obligations. We may also retain information when law requires it or when reasonably necessary to establish, exercise, or defend a legal claim.</p>
+      </section>
+
+      <section class="privacy-section" id="security">
+        <h2>8. Security</h2>
+        <p>We use administrative, technical, and organizational safeguards appropriate to the sensitivity of the information, including encrypted network connections, secure production cookie settings, access controls, managed authentication, rate limiting, and limiting application logs that intentionally include journey content. No internet service can guarantee absolute security.</p>
+        <p>If you believe your information or account may have been compromised, contact the privacy lead promptly.</p>
+      </section>
+
+      <section class="privacy-section" id="international">
+        <h2>9. Processing outside Canada</h2>
+        <p>Service providers, including Render, Auth0/Okta, and Google, may process or store information in the United States and other jurisdictions outside Canada. Information in another jurisdiction may be available to courts, law-enforcement agencies, and national-security authorities under that jurisdiction's laws.</p>
+      </section>
+
+      <section class="privacy-section" id="choices">
+        <h2>10. Your privacy choices and rights</h2>
+        <p>Subject to applicable law, you may ask us to:</p>
+        <ul>
+          <li>explain whether we hold personal information about you and how it has been used or disclosed;</li>
+          <li>provide access to that information;</li>
+          <li>correct inaccurate or incomplete information;</li>
+          <li>delete information that is no longer required, subject to lawful exceptions;</li>
+          <li>withdraw consent to future collection, use, or disclosure where consent is the basis, understanding that some features may then be unavailable; or</li>
+          <li>answer a question or investigate a privacy complaint.</li>
+        </ul>
+        <p>You can edit a goal and individual breadcrumbs in the app, and delete individual breadcrumbs. For account access, full journey deletion, or another privacy request, email the privacy lead. We may need to verify your identity before responding and will never ask for your password. We will respond within the time required by applicable law or explain any lawful refusal.</p>
+        <p>If you use brdcrmbs for or with a minor, provide only information necessary for the task and ensure you have authority to provide it.</p>
+      </section>
+
+      <section class="privacy-section" id="changes">
+        <h2>11. Changes to this policy</h2>
+        <p>We may update this policy when the service, providers, or legal obligations change. The effective date at the top will be updated. If a change is material, we will provide a prominent notice in the service or another appropriate form of notice before the change takes effect.</p>
+      </section>
+
+      <section class="privacy-section privacy-contact" id="contact">
+        <h2>12. Contact us</h2>
+        <p><strong>Civic Breadcrumbs Privacy Lead</strong><br>
+          Email: <a href="mailto:{{ privacy_contact_email }}">{{ privacy_contact_email }}</a></p>
+        <p>Use the subject line “Privacy request.” Describe the account email or guest journey involved, the request, and enough detail for us to locate the relevant information. Do not email sensitive identity documents unless the privacy lead specifically requests a secure verification method.</p>
+        <p>If we do not resolve your concern, you may contact the <a href="https://www.priv.gc.ca/en/report-a-concern/" rel="noopener noreferrer">Office of the Privacy Commissioner of Canada</a> or the privacy regulator in your province or territory.</p>
+      </section>
+    </article>
+  </main>
+
+  <footer>
+    <img src="{% static 'demo/img/favicon.ico' %}" alt="" aria-hidden="true">
+    <span>brdcrmbs</span>
+    <span aria-hidden="true">·</span>
+    <a href="{% url 'demo' %}">Home</a>
+    <span aria-hidden="true">·</span>
+    <a href="#main" aria-current="page">Privacy policy</a>
+  </footer>
+</body>
+</html>

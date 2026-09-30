@@ -137,6 +137,7 @@ window.I18N = {
     "completion.review_button": "Review my journey",
 
     "footer.disclaimer": "Independent guidance. Not a government service.",
+    "footer.privacy": "Privacy policy",
 
     "modal.confirm_goal.eyebrow": "Confirm your goal",
     "modal.confirm_goal.title": "Is this what you need help with?",
@@ -431,6 +432,7 @@ window.I18N = {
     "completion.review_button": "Revoir ma démarche",
 
     "footer.disclaimer": "Une aide indépendante. Pas un service gouvernemental.",
+    "footer.privacy": "Politique de confidentialité",
 
     "modal.confirm_goal.eyebrow": "Confirmez votre objectif",
     "modal.confirm_goal.title": "Est-ce bien l’aide dont vous avez besoin?",
