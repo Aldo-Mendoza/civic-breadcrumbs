@@ -896,6 +896,34 @@ class RuleBasedAIService:
         organization = match_organization_by_topic(user_text)
         return organization.name if organization else ""
 
+    def summarize_goal(self, user_text):
+        """Keep confirmation usable when Gemini is unavailable."""
+        fields = {}
+        for line in (user_text or "").splitlines():
+            label, separator, value = line.partition(":")
+            if separator:
+                fields[label.strip().lower()] = value.strip()
+        goal = fields.get("goal", "")
+        situation = fields.get("situation", "")
+        core = goal.rstrip(". ") or situation.rstrip(". ")
+        if _is_french():
+            core = re.sub(r"^(je veux|je dois|j’ai besoin de|j'ai besoin de)\s+", "", core, flags=re.IGNORECASE)
+            core = re.sub(r"\b(mon|ma|mes)\b", "votre", core, flags=re.IGNORECASE)
+            if len(core) > 1 and not core[:2].isupper():
+                core = core[0].lower() + core[1:]
+            summary = "Est-ce que vous demandez de l’aide pour atteindre votre objectif de {core}?".format(
+                core=core[:180]
+            )
+        else:
+            core = re.sub(r"^(i want to|i need to|to)\s+", "", core, flags=re.IGNORECASE)
+            core = re.sub(r"\bmy\b", "your", core, flags=re.IGNORECASE)
+            if len(core) > 1 and not core[:2].isupper():
+                core = core[0].lower() + core[1:]
+            summary = "Are you asking for help with your goal to {core}?".format(
+                core=core[:180]
+            )
+        return ProseSummary(summary=summary or (user_text or "").strip(), extractor=self.name)
+
     # -- breadcrumbs -------------------------------------------------------
 
     def extract_breadcrumb(self, user_text, minimal_context):

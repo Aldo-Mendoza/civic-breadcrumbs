@@ -139,10 +139,19 @@ window.I18N = {
     "footer.disclaimer": "Independent guidance. Not a government service.",
 
     "modal.confirm_goal.eyebrow": "Confirm your goal",
-    "modal.confirm_goal.title": "Does this describe what you want to track?",
-    "modal.confirm_goal.lede": "Review your wording before we create the Journey.",
+    "modal.confirm_goal.title": "Is this what you need help with?",
+    "modal.confirm_goal.lede": "Confirm the main request we understood before we create the Journey.",
     "modal.confirm_goal.no_situation": "No additional situation details yet.",
+    "modal.confirm_goal.gemini_summary": "Summarized with Gemini from the goal and situation you provided.",
+    "modal.confirm_goal.fallback_summary": "Gemini was unavailable, so this summary was prepared without AI. Please review it carefully.",
     "modal.confirm_goal.submit": "Build my guide <span aria-hidden=\"true\">→</span>",
+
+    "modal.edit_goal.eyebrow": "Edit your goal",
+    "modal.edit_goal.title": "What would you like to change?",
+    "modal.edit_goal.lede": "Update the title or description shown for this Journey.",
+    "modal.edit_goal.name_label": "Goal title",
+    "modal.edit_goal.description_label": "Goal description",
+    "modal.edit_goal.save": "Save changes",
 
     "modal.record.eyebrow": "Add to your Journey",
     "modal.record.title_default": "What happened?",
@@ -424,10 +433,19 @@ window.I18N = {
     "footer.disclaimer": "Une aide indépendante. Pas un service gouvernemental.",
 
     "modal.confirm_goal.eyebrow": "Confirmez votre objectif",
-    "modal.confirm_goal.title": "Est-ce que ceci décrit ce que vous voulez suivre?",
-    "modal.confirm_goal.lede": "Révisez votre texte avant que nous créions la démarche.",
+    "modal.confirm_goal.title": "Est-ce bien l’aide dont vous avez besoin?",
+    "modal.confirm_goal.lede": "Confirmez la demande principale que nous avons comprise avant de créer la démarche.",
     "modal.confirm_goal.no_situation": "Aucun détail de situation pour l'instant.",
+    "modal.confirm_goal.gemini_summary": "Résumé avec Gemini à partir de l'objectif et de la situation fournis.",
+    "modal.confirm_goal.fallback_summary": "Gemini n'était pas disponible; ce résumé a été préparé sans IA. Veuillez le vérifier attentivement.",
     "modal.confirm_goal.submit": "Créer mon guide <span aria-hidden=\"true\">→</span>",
+
+    "modal.edit_goal.eyebrow": "Modifier votre objectif",
+    "modal.edit_goal.title": "Que souhaitez-vous modifier?",
+    "modal.edit_goal.lede": "Mettez à jour le titre ou la description affichés pour cette démarche.",
+    "modal.edit_goal.name_label": "Titre de l'objectif",
+    "modal.edit_goal.description_label": "Description de l'objectif",
+    "modal.edit_goal.save": "Enregistrer les modifications",
 
     "modal.record.eyebrow": "Ajouter à votre démarche",
     "modal.record.title_default": "Que s'est-il passé?",

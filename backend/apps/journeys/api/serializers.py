@@ -254,6 +254,15 @@ class JourneyCreateSerializer(serializers.Serializer):
         return attrs
 
 
+class GoalPreviewSerializer(serializers.Serializer):
+    """Unsaved goal text used only to produce the confirmation summary."""
+
+    goal = serializers.CharField(max_length=200)
+    description = serializers.CharField(
+        required=False, allow_blank=True, max_length=1000
+    )
+
+
 class JourneyUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Journey

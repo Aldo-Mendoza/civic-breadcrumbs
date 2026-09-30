@@ -62,6 +62,33 @@ class ApiTestCase(TestCase):
 
 
 class JourneyCreateTests(ApiTestCase):
+    def test_goal_preview_summarizes_without_creating_a_journey(self):
+        before = Journey.objects.count()
+        response = self.post(
+            reverse("journey-preview"),
+            {
+                "goal": "Renew my study permit",
+                "description": "I submitted my documents and need to know what comes next",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["summary"],
+            "Are you asking for help with your goal to renew your study permit?",
+        )
+        self.assertEqual(response.json()["ai"]["extractor"], "rules")
+        self.assertEqual(Journey.objects.count(), before)
+
+    def test_out_of_scope_goal_preview_does_not_call_ai_or_create_a_journey(self):
+        before = Journey.objects.count()
+        response = self.post(
+            reverse("journey-preview"),
+            {"goal": "Write a poem", "description": "Make it about Ottawa"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["type"], enums.Intent.OUT_OF_SCOPE)
+        self.assertEqual(Journey.objects.count(), before)
+
     def test_create_journey_from_a_plain_description(self):
         response = self.post(
             reverse("journey-list"),
@@ -174,6 +201,26 @@ class JourneyCreateTests(ApiTestCase):
         self.assertEqual(response.status_code, 201)
         body = response.json()
         self.assertEqual(body["primary_organization"]["short_name"], "IRCC")
+
+
+class JourneyUpdateTests(ApiTestCase):
+    def test_editing_a_goal_updates_its_title_and_description(self):
+        response = self.patch(
+            reverse("journey-detail", args=[self.journey.id]),
+            {
+                "title": "Updated permit goal",
+                "goal": "Track the remaining steps for my permit extension.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["title"], "Updated permit goal")
+        self.assertEqual(
+            response.json()["goal"],
+            "Track the remaining steps for my permit extension.",
+        )
+        self.journey.refresh_from_db()
+        self.assertEqual(self.journey.title, "Updated permit goal")
 
 
 class InterpretAndConfirmTests(ApiTestCase):

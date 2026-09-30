@@ -168,6 +168,33 @@ def organization_prompt(user_text, known_organizations):
     )
 
 
+def goal_summary_prompt(user_text):
+    """Distill the citizen's core ask into the confirmation shown before creation."""
+    question_shape = (
+        'Start exactly with "Est-ce que vous demandez de l’aide pour" and end with "?".'
+        if _is_french()
+        else 'Start exactly with "Are you asking for help with" and end with "?".'
+    )
+    return "\n\n".join(
+        [
+            _ROLE_GUARD,
+            _language_instruction(),
+            _fence(user_text),
+            (
+                "Identify the ONE main thing the citizen wants help accomplishing. "
+                "Use the Situation only to add a decisive current-state detail that "
+                "changes or clarifies that core ask; omit background details that do "
+                "not. Do not mechanically join or restate the Goal and Situation. "
+                "Write one short, natural confirmation question of at most 35 words. "
+                + question_shape
+                + " Do not add advice, assumptions, eligibility claims, deadlines, "
+                "organizations, or facts the citizen did not provide. Return JSON "
+                "with a single summary field containing only that question."
+            ),
+        ]
+    )
+
+
 def journey_prompt(user_text, source_context=None):
     """Prompt for proposing a journey and a small, non-authoritative guide."""
     source_context = source_context or []

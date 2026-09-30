@@ -758,15 +758,28 @@
     finally { button.disabled = false; }
   }
 
-  async function editJourney() {
-    const title = prompt(t("prompt.journey_title"), state.current.title);
-    if (title === null) return;
-    const goal = prompt(t("prompt.journey_goal"), state.current.goal);
-    if (goal === null) return;
+  function editJourney() {
+    if (!state.current) return;
+    $("edit-goal-name").value = state.current.title || "";
+    $("edit-goal-description").value = state.current.goal || "";
+    openModal("edit-goal-modal");
+    setTimeout(() => $("edit-goal-name").focus(), 0);
+  }
+
+  async function saveJourneyEdits(event) {
+    event.preventDefault();
+    if (!state.current) return;
+    const title = $("edit-goal-name").value.trim();
+    const goal = $("edit-goal-description").value.trim();
+    if (!title || !goal) return;
+    const button = $("save-goal");
+    button.disabled = true;
     try {
       await api(`/journeys/${state.current.id}/`, { method: "PATCH", body: JSON.stringify({ title, goal }) });
+      closeModal("edit-goal-modal");
       await refreshCurrent(t("toast.goal_updated"));
     } catch (error) { toast(error.message); }
+    finally { button.disabled = false; }
   }
 
   async function createJourney() {
@@ -836,13 +849,34 @@
     $("completion-new").addEventListener("click", startNewGoal);
     $("review-completed").addEventListener("click", () => showScreen("journey"));
     $("profile-button").addEventListener("click", showAccount);
-    $("goal-form").addEventListener("submit", (event) => {
+    $("goal-form").addEventListener("submit", async (event) => {
       event.preventDefault();
       const goal = $("goal-input").value.trim();
       if (!goal) return;
-      $("confirm-goal-text").textContent = goal;
-      $("confirm-situation-text").textContent = $("situation-input").value.trim() || t("modal.confirm_goal.no_situation");
-      openModal("goal-confirm-modal");
+      const situation = $("situation-input").value.trim();
+      const button = $("goal-review");
+      button.disabled = true;
+      button.setAttribute("aria-busy", "true");
+      try {
+        const body = await api("/journeys/preview/", {
+          method: "POST",
+          body: JSON.stringify({ goal, description: situation }),
+        });
+        if (body.type === "OUT_OF_SCOPE") {
+          toast(body.message || t("toast.request_failed"));
+          return;
+        }
+        $("confirm-goal-text").textContent = body.summary || goal;
+        $("confirm-situation-text").textContent = body.ai && body.ai.extractor === "gemini"
+          ? t("modal.confirm_goal.gemini_summary")
+          : t("modal.confirm_goal.fallback_summary");
+        openModal("goal-confirm-modal");
+      } catch (error) {
+        toast(error.message);
+      } finally {
+        button.disabled = false;
+        button.removeAttribute("aria-busy");
+      }
     });
     $("confirm-create").addEventListener("click", createJourney);
     $("add-event").addEventListener("click", () => openRecordModal());
@@ -862,6 +896,7 @@
     $("record-guide-step").addEventListener("click", () => { const step = state.activeGuideStep; closeModal("guide-step-modal"); openRecordModal(step); });
     $("complete-guide-step").addEventListener("click", completeGuideStep);
     $("edit-journey").addEventListener("click", editJourney);
+    $("edit-goal-form").addEventListener("submit", saveJourneyEdits);
     $("auth-login").addEventListener("click", async () => { if (state.auth0) await state.auth0.loginWithRedirect({ authorizationParams: { screen_hint: "login" } }); });
     $("confirm-modal-confirm").addEventListener("click", () => resolveConfirm(true));
     $("confirm-modal-cancel").addEventListener("click", () => resolveConfirm(false));

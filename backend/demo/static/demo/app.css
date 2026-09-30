@@ -232,6 +232,8 @@ textarea { min-height: 150px; resize: vertical; line-height: 1.5; }
 .question-orb { flex: 0 0 auto; width: 56px; height: 56px; display: grid; place-items: center; border-radius: 50%; background: var(--mint); color: var(--teal-dark); font-size: 1.8rem; font-weight: 800; }
 .context-chip { display: inline-block; padding: 9px 16px; border-radius: 999px; background: var(--mint); color: #174d4a; margin: 8px 0 28px 78px; }
 .modal textarea { min-height: 145px; }
+#edit-goal-form { margin-top: 24px; }
+#edit-goal-form label:not(:first-child) { margin-top: 18px; }
 .field-help { color: var(--muted); font-size: .88rem; margin-top: 8px; }
 .draft-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
 .draft-tags span { background: #eef3f4; border-radius: 999px; padding: 6px 11px; color: #496071; font-size: .84rem; }

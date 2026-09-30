@@ -4,6 +4,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path("journeys/preview/", views.GoalPreviewView.as_view(), name="journey-preview"),
     path("journeys/", views.JourneyListCreateView.as_view(), name="journey-list"),
     path(
         "journeys/<uuid:journey_id>/",

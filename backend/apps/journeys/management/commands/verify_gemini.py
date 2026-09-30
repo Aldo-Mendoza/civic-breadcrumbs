@@ -33,7 +33,7 @@ def _mask(key):
 class Command(BaseCommand):
     help = (
         "Live-check the configured Gemini API key and model, then exercise "
-        "all four AIService methods with synthetic data. Spends real API "
+        "all five AIService methods with synthetic data. Spends real API "
         "quota -- never run from tests or CI."
     )
 
@@ -130,7 +130,7 @@ class Command(BaseCommand):
         through AIGateway, so a live call is guaranteed rather than silently
         skipped by the fallback). Synthetic data only (CLAUDE.md §29/§30).
         """
-        self.stdout.write("--- Exercising all four AI operations live ---")
+        self.stdout.write("--- Exercising all five AI operations live ---")
         service = GeminiAIService()
         known_organizations = [
             {
@@ -144,6 +144,13 @@ class Command(BaseCommand):
             "extract_journey",
             lambda: service.extract_journey(
                 "I applied to extend my study permit and I'm not sure what to do next."
+            ),
+        )
+        self._try(
+            "summarize_goal",
+            lambda: service.summarize_goal(
+                "Goal: Renew my study permit\n"
+                "Situation: I submitted the requested documents and need to know what comes next."
             ),
         )
         self._try(

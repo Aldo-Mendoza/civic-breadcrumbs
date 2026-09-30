@@ -7,7 +7,7 @@
   <meta name="description" id="meta-description" data-i18n-content="meta.description" content="brdcrmbs keeps a structured record of your public-service journey — what happened, where you left off, and what to do next.">
   <link rel="icon" type="image/x-icon" href="{% static 'demo/img/favicon.ico' %}">
   <link rel="apple-touch-icon" href="{% static 'demo/img/apple-touch-icon.jpeg' %}">
-  <link rel="stylesheet" href="{% static 'demo/app.css' %}">
+  <link rel="stylesheet" href="{% static 'demo/app.css' %}?v=20260930-edit-goal-2">
 </head>
 <body>
   <a class="skip-link" href="#main" data-i18n="a11y.skip_link">Skip to main content</a>
@@ -171,7 +171,7 @@
           </div>
 
           <div class="create-action">
-            <button class="round-arrow" type="submit" aria-label="Review and create guide" data-i18n-aria-label="create.submit_aria">→</button>
+            <button class="round-arrow" id="goal-review" type="submit" aria-label="Review and create guide" data-i18n-aria-label="create.submit_aria">→</button>
             <span data-i18n="create.submit_label">Create guide</span>
           </div>
           <p class="privacy-note" data-i18n="create.privacy_note">Include relevant details. Avoid passport numbers, SINs, or other personal identification numbers.</p>
@@ -273,8 +273,8 @@
     <section class="modal wide" role="dialog" aria-modal="true" aria-labelledby="confirm-goal-title">
       <button class="modal-close" data-close="goal-confirm-modal" aria-label="Close" data-i18n-aria-label="common.close_aria">×</button>
       <p class="eyebrow" data-i18n="modal.confirm_goal.eyebrow">Confirm your goal</p>
-      <h2 id="confirm-goal-title" data-i18n="modal.confirm_goal.title">Does this describe what you want to track?</h2>
-      <p class="modal-lede" data-i18n="modal.confirm_goal.lede">Review your wording before we create the Journey.</p>
+      <h2 id="confirm-goal-title" data-i18n="modal.confirm_goal.title">Is this what you need help with?</h2>
+      <p class="modal-lede" data-i18n="modal.confirm_goal.lede">Confirm the main request we understood before we create the Journey.</p>
       <div class="choice selected">
         <span class="radio-dot"></span>
         <div><strong id="confirm-goal-text"></strong><p id="confirm-situation-text"></p></div>
@@ -283,6 +283,26 @@
         <button class="button secondary" data-close="goal-confirm-modal" data-i18n="common.back">Back</button>
         <button class="button primary" id="confirm-create" data-i18n-html="modal.confirm_goal.submit">Build my guide <span aria-hidden="true">→</span></button>
       </div>
+    </section>
+  </div>
+
+  <div class="modal-shell" id="edit-goal-modal" hidden>
+    <div class="modal-backdrop" data-close="edit-goal-modal"></div>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="edit-goal-title">
+      <button class="modal-close" type="button" data-close="edit-goal-modal" aria-label="Close" data-i18n-aria-label="common.close_aria">×</button>
+      <p class="eyebrow" data-i18n="modal.edit_goal.eyebrow">Edit your goal</p>
+      <h2 id="edit-goal-title" data-i18n="modal.edit_goal.title">What would you like to change?</h2>
+      <p class="modal-lede" data-i18n="modal.edit_goal.lede">Update the title or description shown for this Journey.</p>
+      <form id="edit-goal-form">
+        <label for="edit-goal-name" data-i18n="modal.edit_goal.name_label">Goal title</label>
+        <input id="edit-goal-name" maxlength="200" required>
+        <label for="edit-goal-description" data-i18n="modal.edit_goal.description_label">Goal description</label>
+        <textarea id="edit-goal-description" maxlength="1000" required></textarea>
+        <div class="modal-actions split">
+          <button class="button secondary" type="button" data-close="edit-goal-modal" data-i18n="common.cancel">Cancel</button>
+          <button class="button primary" id="save-goal" type="submit" data-i18n="modal.edit_goal.save">Save changes</button>
+        </div>
+      </form>
     </section>
   </div>
 
@@ -398,7 +418,7 @@
   <div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
 
   <script src="https://cdn.auth0.com/js/auth0-spa-js/2.1/auth0-spa-js.production.js" defer></script>
-  <script src="{% static 'demo/i18n.js' %}" defer></script>
-  <script src="{% static 'demo/app.js' %}" defer></script>
+  <script src="{% static 'demo/i18n.js' %}?v=20260930-edit-goal-2" defer></script>
+  <script src="{% static 'demo/app.js' %}?v=20260930-edit-goal-2" defer></script>
 </body>
 </html>

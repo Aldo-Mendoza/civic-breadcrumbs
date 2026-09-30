@@ -27,7 +27,7 @@ service**, not a normal function call:
   ``services.ai.factory.AIGateway`` for the per-action call budget that
   enforces this across the whole gateway, not just within one method here.
 
-This adapter has been exercised against the live API (all four contract
+This adapter has been exercised against the live API (all five contract
 methods, plus the model-catalog check) via ``manage.py verify_gemini`` and the
 manual ``manage.py eval_gemini`` suite -- neither of which runs as part of
 ``manage.py test``, and both of which require ``AI_LIVE_TESTS=true`` to be set
@@ -37,7 +37,7 @@ import json
 import logging
 
 from django.conf import settings
-from django.utils.translation import gettext as _
+from django.utils.translation import get_language, gettext as _
 
 from common.exceptions import AIInvalidOutput, AIUnavailable
 
@@ -198,6 +198,28 @@ class GeminiAIService:
         return self._restrict_organization(
             draft.organization, {"known_organizations": known_organizations or []}
         )
+
+    def summarize_goal(self, user_text):
+        payload = self._generate(
+            prompts.goal_summary_prompt(user_text),
+            PROSE_RESPONSE_SCHEMA,
+            "summarize_goal",
+        )
+        summary = ProseSummary(
+            summary=payload.get("summary", ""), extractor=self.name
+        )
+        prefix = (
+            "Est-ce que vous demandez de l’aide pour"
+            if (get_language() or "en").startswith("fr")
+            else "Are you asking for help with"
+        )
+        if (
+            not summary.summary.startswith(prefix)
+            or not summary.summary.endswith("?")
+            or len(summary.summary.split()) > 35
+        ):
+            raise AIInvalidOutput(_("The AI service returned an invalid goal summary."))
+        return summary
 
     def extract_breadcrumb(self, user_text, minimal_context):
         payload = self._generate(

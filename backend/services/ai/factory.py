@@ -30,6 +30,10 @@ from .rules import RuleBasedAIService
 
 logger = logging.getLogger("civic.ai")
 
+# Increment an operation's version when its output contract changes so an
+# exact-input retry cannot receive wording cached under an older prompt.
+_CACHE_VERSIONS = {"summarize_goal": 2}
+
 
 def ai_configured():
     """Whether a live model is both enabled and credentialed."""
@@ -113,7 +117,12 @@ class AIGateway:
     def _cache_key(self, operation, args):
         """Cache exact action inputs within one server-resolved identity."""
         encoded = json.dumps(
-            {"identity": self._cache_namespace, "operation": operation, "args": args},
+            {
+                "identity": self._cache_namespace,
+                "operation": operation,
+                "version": _CACHE_VERSIONS.get(operation, 1),
+                "args": args,
+            },
             sort_keys=True,
             separators=(",", ":"),
             default=str,
@@ -129,6 +138,9 @@ class AIGateway:
 
     def classify_organization(self, user_text, known_organizations):
         return self._run("classify_organization", user_text, known_organizations)
+
+    def summarize_goal(self, user_text):
+        return self._run("summarize_goal", user_text)
 
     def extract_breadcrumb(self, user_text, minimal_context):
         return self._run("extract_breadcrumb", user_text, minimal_context)

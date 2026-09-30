@@ -47,6 +47,7 @@ class FakeFailingService:
     extract_journey = _fail
     extract_breadcrumb = _fail
     summarize_stuck_state = _fail
+    summarize_goal = _fail
     generate_handoff = _fail
     classify_organization = _fail
 
@@ -96,6 +97,13 @@ class FakeWorkingService:
         self.calls += 1
         return ProseSummary(summary="A clearer version.", extractor="gemini")
 
+    def summarize_goal(self, user_text):
+        self.calls += 1
+        return ProseSummary(
+            summary="Are you asking for help with renewing your permit?",
+            extractor="gemini",
+        )
+
     def generate_handoff(self, snapshot):
         self.calls += 1
         return ProseSummary(summary="A clearer handoff.", extractor="gemini")
@@ -119,6 +127,29 @@ class SchemaValidationTests(TestCase):
         self.assertEqual(draft.channel, enums.Channel.UNKNOWN)
         self.assertEqual(draft.reported_status, enums.ReportedStatus.UNKNOWN)
         self.assertEqual(draft.suggested_next_action, enums.NextActionCode.NONE)
+
+    def test_gemini_goal_summary_must_be_a_short_confirmation_question(self):
+        service = GeminiAIService(api_key="unused-in-this-test", model="unused")
+        with patch.object(
+            service,
+            "_generate",
+            return_value={"summary": "You want to renew your permit."},
+        ):
+            with translation.override("en"):
+                with self.assertRaises(AIInvalidOutput):
+                    service.summarize_goal("Goal: Renew my permit")
+
+    def test_gemini_goal_summary_accepts_the_confirmation_contract(self):
+        service = GeminiAIService(api_key="unused-in-this-test", model="unused")
+        expected = "Are you asking for help with renewing your permit?"
+        with patch.object(
+            service, "_generate", return_value={"summary": expected}
+        ):
+            with translation.override("en"):
+                self.assertEqual(
+                    service.summarize_goal("Goal: Renew my permit").summary,
+                    expected,
+                )
 
     def test_overlong_strings_are_capped(self):
         draft = BreadcrumbDraft(
@@ -706,6 +737,18 @@ class GatewayFallbackTests(TestCase):
         draft, degraded = gateway.extract_breadcrumb("I called IRCC today.", {})
         self.assertFalse(degraded)
         self.assertEqual(draft.extractor, "gemini")
+        self.assertEqual(gateway.calls, 1)
+
+    def test_goal_summary_uses_one_model_call(self):
+        gateway = AIGateway(primary=FakeWorkingService(), fallback=RuleBasedAIService())
+        summary, degraded = gateway.summarize_goal(
+            "Goal: Renew my permit\nSituation: I submitted my documents."
+        )
+        self.assertFalse(degraded)
+        self.assertEqual(summary.extractor, "gemini")
+        self.assertEqual(
+            summary.summary, "Are you asking for help with renewing your permit?"
+        )
         self.assertEqual(gateway.calls, 1)
 
     def test_the_deterministic_engine_alone_spends_no_budget(self):

@@ -42,6 +42,7 @@ from .serializers import (
     BreadcrumbUpdateSerializer,
     GuideSerializer,
     GuideStepSerializer,
+    GoalPreviewSerializer,
     InterpretRequestSerializer,
     JourneyCreateSerializer,
     JourneyDetailSerializer,
@@ -94,6 +95,34 @@ def _change_payload(change):
         "next_action_changed": change.next_action_changed,
         "message": change.message,
     }
+
+
+class GoalPreviewView(APIView):
+    """Summarize one unsaved goal for the explicit confirmation step. 1 AI call."""
+
+    throttle_classes = AI_THROTTLES
+
+    @extend_schema(request=GoalPreviewSerializer)
+    def post(self, request):
+        serializer = GoalPreviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        goal = serializer.validated_data["goal"].strip()
+        description = serializer.validated_data.get("description", "").strip()
+        user_text = "Goal: {goal}\nSituation: {description}".format(
+            goal=goal,
+            description=description or _("No additional situation details were provided."),
+        )
+
+        if classify_intent(user_text) == enums.Intent.OUT_OF_SCOPE:
+            return Response(out_of_scope_response())
+
+        summary, degraded = get_gateway(str(request.user.pk)).summarize_goal(user_text)
+        return Response(
+            {
+                "summary": summary.summary or goal,
+                "ai": {"degraded": degraded, "extractor": summary.extractor},
+            }
+        )
 
 
 class JourneyListCreateView(APIView):

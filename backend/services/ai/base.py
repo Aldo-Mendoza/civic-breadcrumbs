@@ -34,6 +34,10 @@ class AIService(Protocol):
         """Name the single best-matching curated organization, or "" if unsure."""
         ...
 
+    def summarize_goal(self, user_text: str) -> ProseSummary:
+        """Summarize the citizen's goal and situation for confirmation."""
+        ...
+
     def extract_breadcrumb(
         self, user_text: str, minimal_context: dict
     ) -> BreadcrumbDraft:
