@@ -371,8 +371,13 @@ def delete_breadcrumb(breadcrumb):
 def complete_guide_step(guide_step):
     """Explicitly complete a suggestion and create one idempotent audit record."""
     with transaction.atomic():
+        # PostgreSQL cannot apply FOR UPDATE to the nullable side of an outer
+        # join.  Both organization and completion_breadcrumb are nullable, so
+        # selecting them here made this endpoint fail in production even though
+        # SQLite (including the test database) accepted the same query.
+        # Lock only the guide step; nullable relations can be fetched lazily.
         guide_step = GuideStep.objects.select_for_update().select_related(
-            "guide__journey", "organization", "completion_breadcrumb"
+            "guide__journey"
         ).get(pk=guide_step.pk)
         if guide_step.completion_breadcrumb_id:
             return guide_step, guide_step.completion_breadcrumb, False

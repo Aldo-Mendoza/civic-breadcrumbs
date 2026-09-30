@@ -14,7 +14,9 @@ from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
@@ -469,6 +471,23 @@ class GuideProgressTests(ApiTestCase):
         self.assertEqual(self.journey.breadcrumbs.count(), 1)
         self.step.refresh_from_db()
         self.assertEqual(self.step.status, enums.GuideStepStatus.COMPLETED)
+
+    def test_completion_lock_query_does_not_join_nullable_relations(self):
+        """Keep the locking query valid on PostgreSQL, not only SQLite."""
+        with CaptureQueriesContext(connection) as queries:
+            response = self.post(reverse("guide-step-complete", args=[self.step.id]), {})
+
+        self.assertEqual(response.status_code, 201)
+        step_queries = [
+            query["sql"]
+            for query in queries.captured_queries
+            if 'FROM "journeys_guidestep"' in query["sql"]
+        ]
+        # The ownership lookup is first; the service's row-locking lookup is
+        # second. Only the latter is subject to PostgreSQL's FOR UPDATE rule.
+        self.assertGreaterEqual(len(step_queries), 2)
+        locking_query = step_queries[1]
+        self.assertNotIn("LEFT OUTER JOIN", locking_query)
 
     def test_deleting_completion_evidence_reopens_the_step(self):
         complete = self.post(reverse("guide-step-complete", args=[self.step.id]), {})
