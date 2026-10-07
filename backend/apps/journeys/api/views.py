@@ -246,11 +246,7 @@ class JourneyDetailView(APIView):
         journey = selectors.get_owned_journey(request.user, journey_id)
         serializer = JourneyUpdateSerializer(journey, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-
-        # A manual status change is respected, but the derived fields are
-        # refreshed so the two can never disagree (§9.1).
-        state = services.recalculate_journey_state(journey)
+        journey, state = services.update_journey(journey, serializer.validated_data)
         breadcrumbs = list(selectors.evidence_breadcrumbs(journey))
         body = JourneyDetailSerializer(journey).data
         body["state"] = _state_payload(state, breadcrumbs, timezone.now())

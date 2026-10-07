@@ -17,7 +17,8 @@ Two rules are enforced structurally rather than by convention:
   difference between a trustworthy civic tool and one that misleads someone
   about their immigration status.
 """
-from dataclasses import dataclass, field
+import re
+from dataclasses import dataclass, field, replace
 
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
@@ -34,12 +35,15 @@ from . import enums
 #: text or vice versa, so being inclusive here is only ever safer.
 _WAIT_PHRASES = (
     "wait",
+    "waiting",
     "do not submit another",
     "not submit another",
     "no action",
     "nothing further",
     "no further action",
-    "attend",
+    "attendre",
+    "attendez",
+    "attente",
     "ne pas soumettre",
     "ne soumettez pas",
     "aucune action",
@@ -117,7 +121,7 @@ def _organization_of(breadcrumb):
 
 def _implies_waiting(text):
     lowered = (text or "").lower()
-    return any(phrase in lowered for phrase in _WAIT_PHRASES)
+    return any(re.search(r"\b" + re.escape(phrase) + r"\b", lowered) for phrase in _WAIT_PHRASES)
 
 
 def _latest_where(ordered, predicate):
@@ -289,6 +293,14 @@ def compute_staleness(status, breadcrumbs, now):
 
 
 def derive_journey_state(journey, breadcrumbs):
+    """Keep explicit archival status while deriving facts from evidence."""
+    state = _derive_evidence_state(journey, breadcrumbs)
+    if journey.status == enums.JourneyStatus.ARCHIVED:
+        return replace(state, status=enums.JourneyStatus.ARCHIVED)
+    return state
+
+
+def _derive_evidence_state(journey, breadcrumbs):
     """
     Derive the current known state of a journey from confirmed evidence.
 
@@ -313,6 +325,14 @@ def derive_journey_state(journey, breadcrumbs):
         else enums.ReportedStatus.UNKNOWN
     )
     instruction = instruction_evidence.instruction if instruction_evidence else ""
+    # Historical instructions remain available for handoffs, but must not be
+    # presented as current after a newer status or explicit action replaces them.
+    current_instruction = instruction
+    if instruction_evidence is not None and any(
+        anchor is not None and _sort_key(anchor) > _sort_key(instruction_evidence)
+        for anchor in (status_evidence, action_evidence)
+    ):
+        current_instruction = ""
     organization = _organization_of(status_evidence or latest)
     references = tuple(sorted({b.reference for b in ordered if b.reference}))
 
@@ -372,7 +392,7 @@ def derive_journey_state(journey, breadcrumbs):
             ).format(when=format_day(action_evidence.occurred_at)),
             next_action=_next_action_sentence(
                 action_evidence.suggested_next_action,
-                action_evidence.instruction or instruction,
+                action_evidence.instruction,
                 organization,
             ),
             next_action_code=action_evidence.suggested_next_action,
@@ -381,10 +401,11 @@ def derive_journey_state(journey, breadcrumbs):
 
     # --- Rule 3: waiting ----------------------------------------------------
     waiting_by_status = reported_status in enums.WAITING_STATUSES
-    waiting_by_instruction = _implies_waiting(instruction)
+    waiting_by_instruction = _implies_waiting(current_instruction)
     waiting_by_code = (
         action_evidence is not None
         and action_evidence.suggested_next_action == enums.NextActionCode.WAIT
+        and (status_evidence is None or _sort_key(action_evidence) >= _sort_key(status_evidence))
     )
 
     if waiting_by_status or waiting_by_instruction or waiting_by_code:
@@ -407,7 +428,7 @@ def derive_journey_state(journey, breadcrumbs):
                 label=label,
             ),
             next_action=_next_action_sentence(
-                enums.NextActionCode.WAIT, instruction, organization
+                enums.NextActionCode.WAIT, current_instruction, organization
             ),
             next_action_code=enums.NextActionCode.WAIT,
             unresolved_issue=_(

@@ -286,6 +286,34 @@ def add_breadcrumb(
     return breadcrumb, True, warnings
 
 
+def update_journey(journey, fields):
+    """Apply validated edits, preserving archival state and reopening quotas."""
+    with transaction.atomic():
+        # Use the same owner lock as creation so a reopen cannot race a create.
+        user = get_user_model().objects.select_for_update().get(pk=journey.user_id)
+        journey = Journey.objects.select_for_update().get(pk=journey.pk, user=user)
+        closed = {enums.JourneyStatus.COMPLETED, enums.JourneyStatus.ARCHIVED}
+        was_closed = journey.status in closed
+        for key in ("title", "goal", "status"):
+            if key in fields:
+                setattr(journey, key, fields[key])
+        state = recalculate_journey_state(journey, persist=False)
+        if was_closed and state.status not in closed:
+            limit = (
+                settings.GUEST_MAX_ACTIVE_JOURNEYS
+                if is_guest_user(user)
+                else settings.USER_MAX_ACTIVE_JOURNEYS
+            )
+            active_count = Journey.objects.filter(user=user).exclude(pk=journey.pk).exclude(
+                status__in=closed
+            ).count()
+            if active_count >= limit:
+                raise JourneyLimitExceeded(limit)
+        journey.save(update_fields=list(fields) + ["updated_at"])
+        state = recalculate_journey_state(journey)
+    return journey, state
+
+
 def update_breadcrumb(breadcrumb, **fields):
     """
     Apply a correction and recalculate the journey.

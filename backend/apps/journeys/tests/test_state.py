@@ -150,6 +150,48 @@ class CaseBInstructionTests(StateTestCase):
 
 
 class ActionRequiredTests(StateTestCase):
+    def test_new_status_does_not_reuse_a_superseded_upload_instruction(self):
+        self.add(occurred_at=aware(2026, 9, 20), structured_data={
+            "instruction": "Upload your passport",
+            "suggested_next_action": enums.NextActionCode.UPLOAD,
+        })
+        self.add(occurred_at=aware(2026, 9, 24), structured_data={
+            "reported_status": enums.ReportedStatus.PROCESSING,
+        })
+        state = self.derive()
+        self.assertEqual(state.status, enums.JourneyStatus.WAITING)
+        self.assertNotIn("Upload your passport", state.next_action)
+
+    def test_new_action_does_not_borrow_an_unrelated_old_instruction(self):
+        self.add(occurred_at=aware(2026, 9, 20), structured_data={
+            "instruction": "Wait for a letter",
+            "suggested_next_action": enums.NextActionCode.WAIT,
+        })
+        self.add(occurred_at=aware(2026, 9, 24), structured_data={
+            "suggested_next_action": enums.NextActionCode.UPLOAD,
+        })
+        state = self.derive()
+        self.assertEqual(state.status, enums.JourneyStatus.ACTION_REQUIRED)
+        self.assertNotIn("Wait for a letter", state.next_action)
+
+    def test_old_wait_does_not_override_a_new_incomplete_status(self):
+        self.add(occurred_at=aware(2026, 9, 20), structured_data={
+            "instruction": "Wait for a letter",
+            "suggested_next_action": enums.NextActionCode.WAIT,
+        })
+        self.add(occurred_at=aware(2026, 9, 24), structured_data={
+            "reported_status": enums.ReportedStatus.INCOMPLETE,
+        })
+        self.assertNotEqual(self.derive().status, enums.JourneyStatus.WAITING)
+
+    def test_attend_an_office_does_not_mean_wait(self):
+        self.add(structured_data={"instruction": "Attend the service office"})
+        self.assertNotEqual(self.derive().status, enums.JourneyStatus.WAITING)
+
+    def test_attendre_still_means_wait_in_french(self):
+        self.add(structured_data={"instruction": "Veuillez attendre la réponse"})
+        self.assertEqual(self.derive().status, enums.JourneyStatus.WAITING)
+
     def test_outstanding_request_for_a_document_requires_action(self):
         self.add(
             occurred_at=aware(2026, 9, 25),

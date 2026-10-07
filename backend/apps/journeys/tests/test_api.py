@@ -62,6 +62,23 @@ class ApiTestCase(TestCase):
 
 
 class JourneyCreateTests(ApiTestCase):
+    def test_archive_survives_reads_and_breadcrumb_changes_and_can_be_reopened(self):
+        url = reverse("journey-detail", args=[self.journey.id])
+        response = self.patch(url, {"status": enums.JourneyStatus.ARCHIVED})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], enums.JourneyStatus.ARCHIVED)
+        self.assertEqual(response.json()["state"]["status"], enums.JourneyStatus.ARCHIVED)
+        from apps.journeys.services import add_breadcrumb, delete_breadcrumb
+
+        self.journey.refresh_from_db()
+        breadcrumb, _, _ = add_breadcrumb(
+            self.journey, kind=enums.BreadcrumbKind.NOTE, title="Archived note"
+        )
+        self.assertEqual(self.client.get(url).json()["state"]["status"], enums.JourneyStatus.ARCHIVED)
+        delete_breadcrumb(breadcrumb)
+        self.assertEqual(self.client.get(url).json()["status"], enums.JourneyStatus.ARCHIVED)
+        self.assertEqual(self.patch(url, {"status": enums.JourneyStatus.ACTIVE}).json()["status"], enums.JourneyStatus.ACTIVE)
+
     def test_goal_preview_summarizes_without_creating_a_journey(self):
         before = Journey.objects.count()
         response = self.post(

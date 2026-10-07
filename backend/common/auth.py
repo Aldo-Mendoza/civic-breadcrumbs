@@ -131,6 +131,7 @@ class GuestSessionAuthentication(BaseAuthentication):
     """Create/resolve one internal guest user from an opaque session cookie."""
 
     def authenticate(self, request):
+        self._enforce_csrf(request)
         purge_expired_guests()
         user = guest_user_from_session(request)
         if user is None:
@@ -146,7 +147,6 @@ class GuestSessionAuthentication(BaseAuthentication):
                 )
             request.session[_GUEST_SESSION_KEY] = user.pk
             request.session.set_expiry(settings.GUEST_SESSION_TTL_SECONDS)
-        self._enforce_csrf(request)
         return user, {"kind": "guest"}
 
     @staticmethod

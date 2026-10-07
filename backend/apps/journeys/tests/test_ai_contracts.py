@@ -14,7 +14,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import requests
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.core.cache import cache
 from django.utils import translation
@@ -115,6 +115,20 @@ class FakeWorkingService:
 
 class SchemaValidationTests(TestCase):
     """§13 -- never trust arbitrary model output."""
+
+    @override_settings(AI_ENABLED=True, GEMINI_API_KEY="fake-key")
+    def test_cached_results_are_separate_for_each_response_language(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
+        primary = FakeWorkingService()
+        with patch.object(primary, "summarize_goal", side_effect=lambda text: ProseSummary(
+            summary=translation.get_language(), extractor="gemini"
+        )) as operation:
+            for language in ("en", "fr", "en"):
+                with translation.override(language):
+                    result, _ = AIGateway(primary=primary, cache_namespace="language-test").summarize_goal("Same goal")
+                    self.assertEqual(result.summary, language)
+            self.assertEqual(operation.call_count, 2)
 
     def test_unknown_enum_values_are_rejected_not_persisted(self):
         draft = BreadcrumbDraft(

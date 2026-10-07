@@ -51,6 +51,10 @@ class _SectionParser(HTMLParser):
 
     SKIP_TAGS = {"script", "style", "nav", "footer", "noscript", "svg"}
     TEXT_TAGS = {"p", "li", "dd", "dt", "td", "th"}
+    VOID_TAGS = {
+        "area", "base", "br", "col", "embed", "hr", "img", "input",
+        "link", "meta", "param", "source", "track", "wbr",
+    }
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -77,6 +81,11 @@ class _SectionParser(HTMLParser):
             return
         if self._skip_depth:
             return
+        # Void elements have no matching end tag and cannot change nesting.
+        if tag in self.VOID_TAGS:
+            if self._text_depth and tag in {"br", "hr"}:
+                self._text_parts.append(" ")
+            return
         attrs = dict(attrs)
         if tag == "title":
             self._title_depth += 1
@@ -93,6 +102,8 @@ class _SectionParser(HTMLParser):
 
     def handle_endtag(self, tag):
         tag = tag.lower()
+        if tag in self.VOID_TAGS:
+            return
         if self._skip_depth:
             if tag in self.SKIP_TAGS:
                 self._skip_depth -= 1

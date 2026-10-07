@@ -53,6 +53,16 @@ def _html(text="Apply using the official online account."):
 
 
 class SectionExtractionTests(TestCase):
+    def test_void_inline_tags_do_not_lose_or_merge_paragraphs(self):
+        for tag in ("<br>", "<img src='icon.png'>", "<wbr>", "<br/>", "<img src='icon.png'/>"):
+            with self.subTest(tag=tag):
+                _, sections = extract_html_sections(
+                    f"<h1>Instructions</h1><p>First{tag}step.</p><p>Second step.</p>"
+                )
+                self.assertEqual(len(sections), 1)
+                self.assertIn("First", sections[0]["text"])
+                self.assertIn("Second step.", sections[0]["text"])
+
     def test_extracts_heading_paths_anchors_and_body_not_navigation(self):
         title, sections = extract_html_sections(_html())
         self.assertEqual(title, "Study permit extension")

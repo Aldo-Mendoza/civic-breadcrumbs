@@ -23,6 +23,7 @@ import json
 
 from django.conf import settings
 from django.core.cache import cache
+from django.utils.translation import get_language
 
 from common.exceptions import AIUnavailable
 
@@ -119,6 +120,7 @@ class AIGateway:
         encoded = json.dumps(
             {
                 "identity": self._cache_namespace,
+                "language": get_language() or settings.LANGUAGE_CODE,
                 "operation": operation,
                 "version": _CACHE_VERSIONS.get(operation, 1),
                 "args": args,

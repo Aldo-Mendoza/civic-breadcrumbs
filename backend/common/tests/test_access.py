@@ -25,6 +25,19 @@ class GuestAccessTests(TestCase):
     def setUp(self):
         cache.clear()
 
+    @override_settings(GUEST_MAX_ACTIVE_JOURNEYS=1)
+    def test_reopening_an_archive_respects_quota_and_rolls_back(self):
+        client = APIClient()
+        first = post_json(client, reverse("journey-list"), {"title": "One"}).json()["id"]
+        url = reverse("journey-detail", args=[first])
+        self.assertEqual(client.patch(url, {"status": "ARCHIVED"}, format="json").json()["status"], "ARCHIVED")
+        self.assertEqual(post_json(client, reverse("journey-list"), {"title": "Two"}).status_code, 201)
+        blocked = client.patch(url, {"status": "ACTIVE", "title": "Changed"}, format="json")
+        self.assertEqual(blocked.status_code, 409)
+        journey = Journey.objects.get(pk=first)
+        self.assertEqual(journey.status, "ARCHIVED")
+        self.assertEqual(journey.title, "One")
+
     def test_guests_are_isolated_by_server_session(self):
         first, second = APIClient(), APIClient()
         created = post_json(first, reverse("journey-list"), {"title": "Private", "goal": "A"})
@@ -37,6 +50,8 @@ class GuestAccessTests(TestCase):
         client = APIClient(enforce_csrf_checks=True)
         blocked = post_json(client, reverse("journey-list"), {"title": "Blocked"})
         self.assertEqual(blocked.status_code, 403)
+        self.assertEqual(GuestSession.objects.count(), 0)
+        self.assertEqual(get_user_model().objects.count(), 0)
 
         token = client.get(reverse("auth-csrf")).json()["csrf_token"]
         allowed = client.post(
