@@ -829,10 +829,17 @@
   async function signOut() {
     closeModal("info-modal");
     if (!state.auth0) return;
+    state.accessToken = null;
+    state.current = null;
+    showLanding();
     await state.auth0.logout({
       logoutParams: { returnTo: window.location.origin + window.location.pathname },
     });
   }
+
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) window.location.reload();
+  });
 
   function bindEvents() {
     $("menu-button").addEventListener("click", openSidebar);

@@ -2,6 +2,7 @@
 set -o errexit
 
 python -m pip install -r requirements.txt
+python manage.py check --deploy --tag security --fail-level ERROR
 python manage.py collectstatic --no-input
 python manage.py migrate --no-input
 python manage.py seed_directory

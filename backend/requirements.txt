@@ -1,11 +1,11 @@
-Django==5.2.3
-djangorestframework==3.16.0
+Django==5.2.18
+djangorestframework==3.17.2
 django-cors-headers==4.6.0
 dj-database-url==2.3.0
 drf-spectacular==0.28.0
 pydantic==2.12.5
 python-dotenv==1.2.2
-PyJWT[crypto]==2.10.1
+PyJWT[crypto]==2.15.0
 psycopg[binary]==3.2.3
 google-genai==1.2.0
 gunicorn==23.0.0

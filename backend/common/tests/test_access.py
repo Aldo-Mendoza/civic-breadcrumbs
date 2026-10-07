@@ -204,6 +204,13 @@ class Auth0JWTTests(TestCase):
         self.assertEqual(self.request(self.token()).status_code, 200)
         self.assertEqual(get_user_model().objects.filter(auth_identity__subject="google-oauth2|opaque-auth0-subject").count(), 1)
 
+    def test_disabled_account_cannot_use_a_valid_token(self):
+        self.assertEqual(self.request(self.token()).status_code, 200)
+        user = get_user_model().objects.get(auth_identity__subject="google-oauth2|opaque-auth0-subject")
+        user.is_active = False
+        user.save(update_fields=["is_active"])
+        self.assertEqual(self.request(self.token()).status_code, 401)
+
     def test_expired_token_is_rejected(self):
         expired = int((timezone.now() - timedelta(minutes=1)).timestamp())
         self.assertEqual(self.request(self.token(exp=expired)).status_code, 401)

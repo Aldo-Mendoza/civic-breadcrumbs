@@ -95,6 +95,8 @@ class Auth0JWTAuthentication(BaseAuthentication):
         if not isinstance(subject, str) or not subject:
             raise AuthenticationFailed("The access token has no subject.")
         user = self._resolve_user(settings.AUTH0_ISSUER, subject, claims)
+        if not user.is_active:
+            raise AuthenticationFailed("This account is disabled.")
         return user, {"kind": "auth0", "claims": claims}
 
     @staticmethod
@@ -134,6 +136,8 @@ class GuestSessionAuthentication(BaseAuthentication):
         self._enforce_csrf(request)
         purge_expired_guests()
         user = guest_user_from_session(request)
+        if user is not None and not user.is_active:
+            raise AuthenticationFailed("This guest session is disabled.")
         if user is None:
             user_model = get_user_model()
             with transaction.atomic():
@@ -163,6 +167,8 @@ class DevUserAuthentication(BaseAuthentication):
 
     def authenticate(self, request):
         if not getattr(settings, "DEV_AUTH_ENABLED", False):
+            return None
+        if not settings.DEBUG and not getattr(settings, "RUNNING_TESTS", False):
             return None
         user_model = get_user_model()
         email = settings.DEV_USER_EMAIL

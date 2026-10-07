@@ -15,6 +15,15 @@ __pycache__/
 db.sqlite3
 db.sqlite3-journal
 
+# Database exports contain account identifiers, sessions, and private journeys.
+*.sql
+*.sql.gz
+*.dump
+*.backup
+*.sqlite
+*.sqlite3
+.private-backups/
+
 # Django
 staticfiles/
 media/
